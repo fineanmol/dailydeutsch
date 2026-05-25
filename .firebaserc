@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "my-german-builder"
+  },
+  "targets": {
+    "my-german-builder": {
+      "hosting": {
+        "dailydeutsch": [
+          "dailydeutsch"
+        ]
+      }
+    }
+  }
+}

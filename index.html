@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Daily Deutsch — Track the German words you use every day. Save translations, learn component vocabulary, and practise with smart exercises." />
+  <title>Daily Deutsch — Build Your German Vocabulary</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="css/style.css?v=1.0.4" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🇩🇪</text></svg>" />
+</head>
+<body>
+
+<div id="app">
+
+<!-- ── Login Screen ── -->
+<div id="login-screen" class="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-logo-icon">🇩🇪</div>
+      <span class="login-logo-text">Daily <span>Deutsch</span></span>
+    </div>
+    <p class="login-tagline">Build your German vocabulary,<br>one word at a time.</p>
+
+    <div id="login-error" class="login-error hidden"></div>
+
+    <button class="login-btn-google" id="google-signin-btn">
+      <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true">
+        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+      </svg>
+      Continue with Google
+    </button>
+
+    <div class="login-divider">or</div>
+
+    <button class="login-btn-guest" id="guest-signin-btn">
+      👤 Continue as Guest
+    </button>
+
+    <p class="login-note">
+      Guest sessions are saved anonymously in the cloud.
+      Link your Google account anytime to sync across all devices.
+    </p>
+  </div>
+</div>
+
+  <!-- ── Settings Overlay + Drawer ── -->
+  <div class="settings-overlay" id="settings-overlay"></div>
+  <aside class="settings-drawer" id="settings-drawer" aria-label="Settings panel">
+    <div class="settings-drawer-header">
+      <div class="settings-drawer-title">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+        Settings
+      </div>
+      <button class="btn btn-ghost btn-icon" id="settings-close" aria-label="Close settings">✕</button>
+    </div>
+
+    <div class="settings-drawer-body">
+
+      <!-- Active API Status -->
+      <div class="settings-status-bar dev-only" id="settings-status-bar">
+        <span class="settings-status-dot" id="settings-status-dot"></span>
+        <span id="settings-status-text">Checking connection…</span>
+      </div>
+
+      <!-- Translation Provider -->
+      <div class="settings-section dev-only">
+        <div class="settings-section-title">Translation API</div>
+        <div class="settings-section-desc">
+          Add your own API key to get better, more accurate translations.
+          Without a key, MyMemory (free) is used automatically.
+        </div>
+
+        <label class="settings-label">Preferred Provider</label>
+        <select class="select" id="setting-provider">
+          <option value="auto">Auto (best available)</option>
+          <option value="deepl">DeepL</option>
+          <option value="google">Google Translate</option>
+          <option value="mymemory">MyMemory (free)</option>
+        </select>
+
+        <label class="settings-label" style="margin-top:1rem;">
+          DeepL API Key
+          <a href="https://www.deepl.com/pro-api" target="_blank" class="settings-help-link">Get free key →</a>
+        </label>
+        <div class="settings-input-wrap">
+          <input class="input" id="setting-deepl-key" type="password"
+            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx:fx"
+            autocomplete="off" spellcheck="false" />
+          <button class="btn btn-ghost btn-sm" onclick="togglePasswordVisibility('setting-deepl-key')">👁</button>
+        </div>
+
+        <label class="settings-label" style="margin-top:1rem;">
+          Google Translate API Key
+          <a href="https://console.cloud.google.com/apis/library/translate.googleapis.com" target="_blank" class="settings-help-link">Get key →</a>
+        </label>
+        <div class="settings-input-wrap">
+          <input class="input" id="setting-google-key" type="password"
+            placeholder="AIzaSy…"
+            autocomplete="off" spellcheck="false" />
+          <button class="btn btn-ghost btn-sm" onclick="togglePasswordVisibility('setting-google-key')">👁</button>
+        </div>
+
+        <button class="btn btn-primary w-full" style="margin-top:1.25rem;" id="settings-save">
+          Save & Apply
+        </button>
+        <button class="btn btn-ghost w-full" style="margin-top:0.5rem;" id="settings-reset">
+          Reset to free defaults
+        </button>
+      </div>
+
+      <!-- Firebase -->
+      <div class="settings-section dev-only">
+        <div class="settings-section-title">Firebase</div>
+        <div class="settings-section-desc">
+          Connect Firebase to sync your word bank across devices.
+          Add your Firebase config to <code>.env</code> on the server,
+          or enter the values below for browser-only storage.
+        </div>
+        <div class="firebase-status-row" id="firebase-status-row">
+          <span id="firebase-status-icon">✅</span>
+          <span id="firebase-status-text">Firebase connected — syncing to cloud</span>
+        </div>
+        <button class="btn btn-ghost btn-sm w-full" style="margin-top:0.75rem;"
+          onclick="App.navigateTo('settings')">
+          Open full backend settings →
+        </button>
+      </div>
+
+      <!-- Account -->
+      <div class="settings-section">
+        <div class="settings-section-title">Account</div>
+        <div class="settings-section-desc" id="settings-account-desc">Loading…</div>
+        <button class="btn btn-ghost btn-sm w-full" id="drawer-upgrade-btn"
+          onclick="App.upgradeToGoogle()" style="display:none;margin-bottom:0.5rem;">
+          🔗 Link Google Account
+        </button>
+        <button class="btn btn-danger w-full" onclick="App.signOut()">
+          Sign Out
+        </button>
+      </div>
+
+    </div>
+  </aside>
+
+  <!-- ── Navbar ── -->
+  <nav class="navbar">
+    <div class="container navbar-inner">
+
+      <!-- Logo -->
+      <a href="#" class="logo" onclick="return false;">
+        <div class="logo-icon">🇩🇪</div>
+        <span class="logo-text">Daily <span>Deutsch</span></span>
+      </a>
+
+      <!-- Desktop Tab Navigation -->
+      <div class="nav-tabs">
+        <button class="nav-tab" data-tab="translate" id="tab-translate">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/>
+            <path d="M8 12h8M12 8v8"/>
+          </svg>
+          Translate
+        </button>
+        <button class="nav-tab" data-tab="bank" id="tab-bank">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+          </svg>
+          Word Bank
+          <span id="nav-word-count" style="background:rgba(252,208,0,0.18);color:#b89a00;padding:1px 7px;border-radius:10px;font-size:0.75rem;">0</span>
+        </button>
+        <button class="nav-tab" data-tab="exercises" id="tab-exercises">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+          </svg>
+          Exercises
+        </button>
+        <button class="nav-tab" data-tab="insights" id="tab-insights">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>
+            <line x1="6" y1="20" x2="6" y2="14"/>
+          </svg>
+          Insights
+        </button>
+        <button class="nav-tab" data-tab="settings" id="tab-settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+          Settings
+        </button>
+      </div>
+
+      <!-- Right: provider badge + streak + user avatar -->
+      <div class="nav-stats">
+        <span class="provider-badge" id="provider-indicator" title="Active translation provider">🌐 MyMemory</span>
+        <div class="stat-pill" style="background:rgba(103,58,183,0.1); color:#673ab7; border-color:rgba(103,58,183,0.2);" id="nav-level-pill" title="Your current learner level">
+          <span>⭐</span>
+          <span class="stat-pill-value" id="nav-level-display">Lvl 1</span>
+        </div>
+        <div class="stat-pill">
+          <span>🔥</span>
+          <span class="stat-pill-value" id="nav-streak-display">–</span>
+          <span>streak</span>
+        </div>
+        <button class="btn btn-ghost btn-icon" id="settings-btn" title="Quick settings" aria-label="Open settings">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+        </button>
+        <!-- User avatar + dropdown -->
+        <div class="nav-user" id="nav-user">
+          <div class="nav-avatar" id="nav-avatar" onclick="App.toggleUserMenu()" title="Account" role="button" aria-label="User menu">
+            <span id="nav-avatar-initial">?</span>
+            <img id="nav-avatar-img" src="" alt="" style="display:none" />
+          </div>
+          <div class="nav-user-dropdown hidden" id="user-dropdown">
+            <div class="nav-user-info">
+              <div class="nav-user-name" id="user-dropdown-name">–</div>
+              <div class="nav-user-email" id="user-dropdown-email"></div>
+              <span class="nav-user-badge" id="user-dropdown-badge">Google</span>
+            </div>
+            <div class="nav-user-actions">
+              <button class="nav-user-action-btn" id="upgrade-btn" onclick="App.upgradeToGoogle()" style="display:none">
+                🔗 Link Google Account
+              </button>
+              <button class="nav-user-action-btn danger" onclick="App.signOut()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                  <polyline points="16 17 21 12 16 7"/>
+                  <line x1="21" y1="12" x2="9" y2="12"/>
+                </svg>
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── Main Content ── -->
+  <main class="main-content" id="main-content">
+
+    <!-- Guest upgrade banner -->
+    <div class="guest-banner hidden" id="guest-banner">
+      <span class="guest-banner-text">👤 You're signed in as a guest. <strong>Link Google</strong> to sync words across all your devices.</span>
+      <button class="btn btn-primary btn-sm" onclick="App.upgradeToGoogle()">Link Google →</button>
+    </div>
+
+    <div class="container">
+
+      <!-- ═══════════════════════════════════════════════ -->
+      <!-- VIEW: TRANSLATE                                 -->
+      <!-- ═══════════════════════════════════════════════ -->
+      <div class="view active" id="view-translate">
+
+        <div class="section-header">
+          <div>
+            <h1 class="section-title">Translate &amp; Learn</h1>
+            <p class="section-subtitle">Type English, get German — save words you use daily</p>
+          </div>
+        </div>
+
+        <div class="translator-grid">
+
+          <!-- Input Panel -->
+          <div class="translator-panel">
+            <div class="translator-panel-header">
+              <div class="lang-label"><span class="lang-flag">🇬🇧</span> English</div>
+              <button class="btn btn-ghost btn-sm" id="clear-btn"
+                onclick="document.getElementById('translate-input').value='';document.getElementById('char-count').textContent='0 / 500';App&&App.clearResult&&App.clearResult();">
+                Clear
+              </button>
+            </div>
+            <textarea
+              id="translate-input"
+              class="input translator-textarea"
+              placeholder="Type or paste English text here…"
+              maxlength="500"
+              aria-label="English text to translate"
+              spellcheck="false"
+            ></textarea>
+            <div class="translator-footer">
+              <span class="char-count" id="char-count">0 / 500</span>
+              <button class="btn btn-primary" id="translate-btn" aria-label="Translate text">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/>
+                  <path d="M8 12h8M12 8v8"/>
+                </svg>
+                Translate
+              </button>
+            </div>
+          </div>
+
+          <!-- Result Panel -->
+          <div class="translator-panel result-panel">
+            <div class="translator-panel-header">
+              <div class="lang-label"><span class="lang-flag">🇩🇪</span> German</div>
+              <button class="btn btn-ghost btn-sm" id="copy-btn" title="Copy translation"
+                onclick="const t=document.getElementById('translation-display');if(t)navigator.clipboard.writeText(t.textContent).then(()=>App.showToast('Copied!','success'));">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+                Copy
+              </button>
+            </div>
+
+            <!-- Main translation -->
+            <div id="result-area">
+              <div class="result-text result-empty">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+                </svg>
+                <span>Translation will appear here</span>
+              </div>
+            </div>
+
+            <!-- CEFR + category + provider badges -->
+            <div id="word-meta" class="word-meta hidden"></div>
+
+            <!-- Synonym alternatives row -->
+            <div id="synonym-row" class="synonym-row hidden"></div>
+
+            <!-- Level variations toggle -->
+            <button id="level-variations-btn" class="btn btn-ghost btn-sm level-var-toggle hidden"
+              onclick="App.toggleLevelVariations()">
+              ▼ See this at every CEFR level
+            </button>
+
+            <!-- Level variations panel (A1–B2 cards) -->
+            <div id="level-variations-panel" class="level-variations-panel hidden"></div>
+
+            <!-- Save bar -->
+            <div id="save-action-bar" class="save-action-bar hidden">
+              <span class="save-msg">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                </svg>
+                Save to your word bank
+              </span>
+              <button class="btn btn-primary btn-sm" id="save-word-btn">Save Word</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Translations -->
+        <div class="recent-section">
+          <div class="section-header" style="margin-bottom:var(--space-md);">
+            <h3 style="font-size:1rem;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.08em;">Recent Translations</h3>
+            <button class="btn btn-ghost btn-sm" onclick="App.navigateTo('bank')">View all →</button>
+          </div>
+          <div class="recent-list" id="recent-list">
+            <p class="text-muted text-center" style="padding:1rem;">No recent translations yet. Start typing above!</p>
+          </div>
+        </div>
+
+      </div><!-- /view-translate -->
+
+
+      <!-- ═══════════════════════════════════════════════ -->
+      <!-- VIEW: WORD BANK                                 -->
+      <!-- ═══════════════════════════════════════════════ -->
+      <div class="view" id="view-bank">
+
+        <div class="section-header">
+          <div>
+            <h1 class="section-title">My Word Bank</h1>
+            <p class="section-subtitle">Every saved word — sorted by how often you use them</p>
+          </div>
+          <button class="btn btn-primary" onclick="App.navigateTo('translate')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Add words
+          </button>
+        </div>
+
+        <div class="wordbank-controls">
+          <div class="search-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input class="input" id="bank-search" type="search" placeholder="Search words…" aria-label="Search word bank" />
+          </div>
+          <div class="filter-pills">
+            <button class="filter-pill active" data-filter="all">All</button>
+            <button class="filter-pill" data-filter="greeting">👋 Greetings</button>
+            <button class="filter-pill" data-filter="food">🍕 Food</button>
+            <button class="filter-pill" data-filter="travel">✈️ Travel</button>
+            <button class="filter-pill" data-filter="number">🔢 Numbers</button>
+            <button class="filter-pill" data-filter="feelings">😊 Feelings</button>
+            <button class="filter-pill" data-filter="work">💼 Work</button>
+            <button class="filter-pill" data-filter="phrase">💬 Phrases</button>
+          </div>
+        </div>
+
+        <div class="word-grid" id="word-grid"></div>
+
+      </div><!-- /view-bank -->
+
+
+      <!-- ═══════════════════════════════════════════════ -->
+      <!-- VIEW: EXERCISES                                 -->
+      <!-- ═══════════════════════════════════════════════ -->
+      <div class="view" id="view-exercises">
+
+        <div id="exercise-picker">
+          <div class="section-header">
+            <div>
+              <h1 class="section-title">Practice Exercises</h1>
+              <p class="section-subtitle">Exercises built from your most-used words — not the same phrases, but the vocabulary inside them</p>
+            </div>
+          </div>
+
+          <div class="exercise-mode-picker">
+            <div class="exercise-mode-card" id="mode-flashcard">
+              <span class="exercise-mode-icon">🃏</span>
+              <div class="exercise-mode-title">Flashcards</div>
+              <p class="exercise-mode-desc">Flip cards to test yourself. Phrases are broken into individual words you'll learn in context.</p>
+              <div style="margin-top:1rem;font-size:0.8rem;color:var(--text-muted);"><span id="ex-word-count">0</span> cards ready</div>
+              <button class="btn btn-primary w-full mt-md" id="start-flashcard">Start →</button>
+            </div>
+            <div class="exercise-mode-card" id="mode-mc">
+              <span class="exercise-mode-icon">🎯</span>
+              <div class="exercise-mode-title">Multiple Choice</div>
+              <p class="exercise-mode-desc">Pick the correct German word from 4 options — includes component words from your saved phrases.</p>
+              <div style="margin-top:1rem;font-size:0.8rem;color:var(--text-muted);"><span id="ex-mc-count">0</span> words</div>
+              <button class="btn btn-primary w-full mt-md" id="start-mc">Start →</button>
+            </div>
+            <div class="exercise-mode-card" id="mode-fitb">
+              <span class="exercise-mode-icon">✏️</span>
+              <div class="exercise-mode-title">Fill in the Blank</div>
+              <p class="exercise-mode-desc">Complete new German sentences using your vocabulary. Never the same phrase twice.</p>
+              <div style="margin-top:1rem;font-size:0.8rem;color:var(--text-muted);"><span id="ex-fitb-count">0</span> words</div>
+              <button class="btn btn-primary w-full mt-md" id="start-fitb">Start →</button>
+            </div>
+          </div>
+
+          <div class="card card-gold" style="margin-top:var(--space-lg);">
+            <div style="display:flex;gap:var(--space-md);align-items:flex-start;">
+              <span style="font-size:1.5rem;">💡</span>
+              <div>
+                <h4>How exercises work</h4>
+                <p style="margin-top:4px;font-size:0.9rem;">
+                  Saved <strong style="color:#b89a00">phrases are decomposed</strong> — "Guten Morgen" becomes exercises about "Morgen" and "gut" separately.
+                  Each session uses <strong style="color:#b89a00">new contextual sentences</strong>, not the exact phrase you saved.
+                  High-frequency, low-accuracy words get more practice automatically.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="exercise-area" class="hidden"></div>
+
+        <div id="exercise-result-area" class="hidden">
+          <div class="exercise-result">
+            <div style="font-size:4rem;margin-bottom:1rem;" id="result-emoji">🏆</div>
+            <div class="result-score" id="result-score-pct">0%</div>
+            <div class="result-message" id="result-msg">Great job!</div>
+            <div style="color:var(--text-muted);font-size:0.9rem;margin-bottom:2rem;" id="result-detail"></div>
+            <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;">
+              <button class="btn btn-primary btn-lg" onclick="App.stopExercise()">Try Again</button>
+              <button class="btn btn-secondary btn-lg" onclick="App.navigateTo('bank')">Word Bank</button>
+              <button class="btn btn-secondary btn-lg" onclick="App.navigateTo('insights')">Insights</button>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /view-exercises -->
+
+
+      <!-- ═══════════════════════════════════════════════ -->
+      <!-- VIEW: INSIGHTS                                  -->
+      <!-- ═══════════════════════════════════════════════ -->
+      <div class="view" id="view-insights">
+
+        <div class="section-header">
+          <div>
+            <h1 class="section-title">Your Learning Insights</h1>
+            <p class="section-subtitle">Which words and categories you use most — focus your learning here</p>
+          </div>
+        </div>
+
+        <!-- Level & XP Progress Card -->
+        <div class="chart-card" style="margin-bottom: 1.5rem; display: flex; flex-direction: column; gap: 0.5rem; padding: 1.25rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <div class="level-badge-large" id="insights-level-badge" style="background:#673ab7; color:#fff; font-family:'Outfit',sans-serif; font-weight:800; font-size:1.3rem; padding:6px 12px; border-radius:12px; display:inline-block; box-shadow:0 4px 10px rgba(103,58,183,0.3)">Lvl 1</div>
+              <div>
+                <div style="font-family:'Outfit',sans-serif; font-weight:700; font-size:1.1rem;" id="insights-level-title">German Novice</div>
+                <div style="font-size:0.75rem; color:var(--text-muted);" id="insights-xp-detail">0 / 100 XP</div>
+              </div>
+            </div>
+            <div style="font-size:0.9rem; font-weight:700; color:#673ab7;" id="insights-xp-percent">0%</div>
+          </div>
+          <div class="xp-bar-track" style="background:rgba(0,0,0,0.06); height:10px; border-radius:5px; overflow:hidden; width:100%; margin-top:4px;">
+            <div class="xp-bar-fill" id="insights-xp-fill" style="width: 0%; height: 100%; background:linear-gradient(90deg, #673ab7, #9c27b0); border-radius:5px; transition:width 0.8s ease-out-in;"></div>
+          </div>
+        </div>
+
+        <div class="insights-grid">
+          <div class="stat-card"><div class="stat-card-icon">📚</div><div class="stat-card-value" id="stat-total-words">0</div><div class="stat-card-label">Words Saved</div></div>
+          <div class="stat-card"><div class="stat-card-icon">🔄</div><div class="stat-card-value" id="stat-translations">0</div><div class="stat-card-label">Translations Made</div></div>
+          <div class="stat-card"><div class="stat-card-icon">🔥</div><div class="stat-card-value" id="stat-streak">0d</div><div class="stat-card-label">Day Streak</div></div>
+          <div class="stat-card"><div class="stat-card-icon">🏷️</div><div class="stat-card-value" id="stat-categories">0</div><div class="stat-card-label">Categories</div></div>
+        </div>
+
+        <div class="insights-row">
+          <div class="chart-card">
+            <div class="chart-title">📊 Category Breakdown</div>
+            <div class="category-bars" id="category-bars"><p class="text-muted">Start translating to see your breakdown</p></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">⭐ Your Top Words</div>
+            <div class="top-words-list" id="top-words-list"><p class="text-muted">Save words to see your top vocabulary</p></div>
+          </div>
+        </div>
+
+        <div class="chart-card streak-section">
+          <div class="chart-title">📅 Activity — Last 60 Days</div>
+          <div class="streak-calendar" id="streak-calendar"></div>
+          <div style="display:flex;gap:1rem;margin-top:1rem;font-size:0.75rem;color:var(--text-muted);align-items:center;">
+            <span>Less</span>
+            <div style="display:flex;gap:3px;">
+              <div style="width:12px;height:12px;border-radius:2px;background:rgba(0,0,0,0.07)"></div>
+              <div style="width:12px;height:12px;border-radius:2px;background:rgba(252,208,0,0.28)"></div>
+              <div style="width:12px;height:12px;border-radius:2px;background:rgba(252,208,0,0.55)"></div>
+              <div style="width:12px;height:12px;border-radius:2px;background:rgba(252,208,0,0.82)"></div>
+              <div style="width:12px;height:12px;border-radius:2px;background:#fcd000"></div>
+            </div>
+            <span>More</span>
+          </div>
+        </div>
+
+        <!-- AI Reading Story Practice -->
+        <div class="chart-card" style="margin-top:1.5rem;">
+          <div class="chart-title">📖 Practice Reading in Context</div>
+          <div id="ai-story-container" style="text-align:center; padding:1.25rem;">
+            <p style="color:var(--text-secondary); font-size:0.9rem; margin-bottom:1rem; line-height:1.45;">
+              Generate a custom German story utilizing words you've learned. Requires a Gemini API Key.
+            </p>
+            <button class="btn btn-primary" onclick="App.generateAIStory()">✏️ Generate AI Story</button>
+          </div>
+        </div>
+
+        <!-- Badge Gallery -->
+        <div class="chart-card" style="margin-top:1.5rem;">
+          <div class="chart-title">🏆 Your Achievements — Badges</div>
+          <div class="badges-grid" id="badges-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(130px, 1fr)); gap:1rem; margin-top:1rem;">
+            <!-- Generated dynamically -->
+          </div>
+        </div>
+
+      </div><!-- /view-insights -->
+
+
+      <!-- ═══════════════════════════════════════════════ -->
+      <!-- VIEW: BACKEND / SETTINGS                        -->
+      <!-- ═══════════════════════════════════════════════ -->
+      <div class="view" id="view-settings">
+
+        <div class="section-header">
+          <div>
+            <h1 class="section-title" id="settings-title">Backend &amp; Settings</h1>
+            <p class="section-subtitle" id="settings-subtitle">Configure API keys, Firebase, and data management</p>
+          </div>
+        </div>
+
+        <!-- Server Status Banner -->
+        <div class="backend-status-banner dev-only" id="backend-banner">
+          <div class="backend-status-icon" id="backend-status-icon">⏳</div>
+          <div>
+            <div class="backend-status-title" id="backend-status-title">Checking server…</div>
+            <div class="backend-status-sub" id="backend-status-sub">Make sure you ran <code>npm start</code></div>
+          </div>
+        </div>
+
+        <div class="settings-grid">
+
+          <!-- ── Account Profile (Production Only) ── -->
+          <div class="settings-page-card prod-only">
+            <div class="settings-page-card-header">
+              <span class="settings-page-card-icon">👤</span>
+              <div>
+                <div class="settings-page-card-title">Account &amp; Sync</div>
+                <div class="settings-page-card-sub">Your active cloud connection</div>
+              </div>
+              <span class="settings-api-badge" id="settings-page-account-badge">Guest</span>
+            </div>
+            <div class="settings-form">
+              <div style="display:flex; align-items:center; gap:16px; margin-bottom:1.5rem;">
+                <div class="nav-avatar" id="settings-page-avatar" style="width:54px; height:54px; font-size:1.5rem; border:2px solid var(--primary); display:flex; align-items:center; justify-content:center;">
+                  <span id="settings-page-avatar-initial">?</span>
+                  <img id="settings-page-avatar-img" src="" alt="" style="display:none; width:100%; height:100%; border-radius:50%;" />
+                </div>
+                <div>
+                  <div id="settings-page-user-name" style="font-family:'Outfit',sans-serif; font-weight:700; font-size:1.15rem; color:var(--text-primary);">Guest User</div>
+                  <div id="settings-page-user-email" style="font-size:0.85rem; color:var(--text-muted);">Not signed in</div>
+                </div>
+              </div>
+              <p id="settings-page-sync-desc" style="font-size:0.88rem; color:var(--text-secondary); margin-bottom:1.25rem; line-height:1.45;">
+                Your vocabulary is currently stored locally in this browser. Upgrade to a Google Account below to sync across devices.
+              </p>
+              <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <button class="btn btn-primary" id="settings-page-upgrade-btn" onclick="App.upgradeToGoogle()">
+                  ⭐ Upgrade to Google Account
+                </button>
+                <button class="btn btn-secondary" onclick="App.signOut()">
+                  Sign Out
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Gemini AI Settings (Shared) ── -->
+          <div class="settings-page-card">
+            <div class="settings-page-card-header">
+              <span class="settings-page-card-icon">🤖</span>
+              <div>
+                <div class="settings-page-card-title">Gemini AI Features</div>
+                <div class="settings-page-card-sub">Enable grammar explanations, plural endings, and custom stories</div>
+              </div>
+              <span class="settings-api-badge" style="background:rgba(0,0,0,0.06);color:var(--text-muted);" id="gemini-status-badge">Disabled</span>
+            </div>
+            <div class="settings-form">
+              <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1rem;line-height:1.45;">
+                Unlock advanced learning features using Google's free Gemini API. Your key is stored 100% locally in your browser.
+              </p>
+              <div class="settings-form-row" style="margin-bottom:0.75rem;">
+                <label class="settings-label" style="display:flex; justify-content:space-between; align-items:center;">
+                  Gemini API Key
+                  <a href="https://aistudio.google.com/" target="_blank" class="settings-help-link" style="font-size:0.75rem; text-decoration:underline;">Get a free key →</a>
+                </label>
+                <div class="settings-input-wrap" style="display:flex; gap:6px;">
+                  <input class="input" id="setting-gemini-key" type="password" placeholder="AIzaSy… (paste key here)" autocomplete="off" style="flex:1;" />
+                  <button class="btn btn-ghost btn-sm" onclick="togglePasswordVisibility('setting-gemini-key')" style="padding:0 8px;">👁</button>
+                </div>
+              </div>
+              <button class="btn btn-primary" style="margin-top:0.5rem; width:100%;" onclick="App.saveGeminiKeyFromUI()">
+                Save Gemini Key
+              </button>
+            </div>
+          </div>
+
+          <!-- ── Translation Service (Production Only) ── -->
+          <div class="settings-page-card prod-only">
+            <div class="settings-page-card-header">
+              <span class="settings-page-card-icon">🌐</span>
+              <div>
+                <div class="settings-page-card-title">Translation Service</div>
+                <div class="settings-page-card-sub">Secure in-browser translations</div>
+              </div>
+              <span class="settings-api-badge">Active</span>
+            </div>
+            <div class="settings-form" style="line-height:1.5; font-size:0.88rem; color:var(--text-secondary);">
+              <p style="margin-bottom:0.75rem;">
+                Daily Deutsch is running in cloud-only mode. All German translations are handled directly in the browser via the <strong>MyMemory Translation API</strong>.
+              </p>
+              <p>
+                No setup or API keys are required. Your searches are processed privately and securely.
+              </p>
+            </div>
+          </div>
+
+          <!-- ── Translation API (Development Only) ── -->
+          <div class="settings-page-card dev-only">
+            <div class="settings-page-card-header">
+              <span class="settings-page-card-icon">🔤</span>
+              <div>
+                <div class="settings-page-card-title">Translation API</div>
+                <div class="settings-page-card-sub">Keys stored in <code>.env</code> — never exposed to the browser</div>
+              </div>
+              <span class="settings-api-badge" id="translation-api-badge">MyMemory</span>
+            </div>
+
+            <div class="settings-form">
+              <div class="settings-form-row">
+                <label class="settings-label">Preferred Provider</label>
+                <select class="select" id="settings-page-provider">
+                  <option value="auto">Auto (best available)</option>
+                  <option value="deepl">Force DeepL</option>
+                  <option value="google">Force Google Translate</option>
+                  <option value="mymemory">MyMemory (free, no key needed)</option>
+                </select>
+              </div>
+
+              <div class="settings-api-row">
+                <div class="settings-api-item">
+                  <div class="settings-api-name">
+                    <span style="font-size:1.1rem;">🔷</span> DeepL
+                    <span class="settings-api-status" id="deepl-status">—</span>
+                  </div>
+                  <div class="settings-api-desc">
+                    Free tier: 500k chars/month.<br>
+                    Add <code>DEEPL_KEY=your_key:fx</code> to <code>.env</code>
+                  </div>
+                  <div class="settings-input-wrap" style="margin-top:0.5rem">
+                    <input class="input" id="pg-deepl-key" type="password" placeholder="xxxxxxxx:fx (stored locally only)" autocomplete="off" />
+                    <button class="btn btn-ghost btn-sm" onclick="togglePasswordVisibility('pg-deepl-key')">👁</button>
+                  </div>
+                  <a href="https://www.deepl.com/pro-api" target="_blank" class="settings-help-link" style="margin-top:0.4rem;display:inline-block">
+                    Get a free DeepL key →
+                  </a>
+                </div>
+
+                <div class="settings-api-item">
+                  <div class="settings-api-name">
+                    <span style="font-size:1.1rem;">🔍</span> Google Translate
+                    <span class="settings-api-status" id="google-status">—</span>
+                  </div>
+                  <div class="settings-api-desc">
+                    Pay-as-you-go; $0 first 500k chars.<br>
+                    Add <code>GOOGLE_KEY=your_key</code> to <code>.env</code>
+                  </div>
+                  <div class="settings-input-wrap" style="margin-top:0.5rem">
+                    <input class="input" id="pg-google-key" type="password" placeholder="AIzaSy… (stored locally only)" autocomplete="off" />
+                    <button class="btn btn-ghost btn-sm" onclick="togglePasswordVisibility('pg-google-key')">👁</button>
+                  </div>
+                  <a href="https://console.cloud.google.com/apis/library/translate.googleapis.com" target="_blank" class="settings-help-link" style="margin-top:0.4rem;display:inline-block">
+                    Enable Google Translate API →
+                  </a>
+                </div>
+              </div>
+
+              <button class="btn btn-primary" style="margin-top:1rem" onclick="App.savePageSettings()">
+                Save API Settings
+              </button>
+            </div>
+          </div>
+
+          <!-- ── Firebase (Development Only) ── -->
+          <div class="settings-page-card dev-only">
+            <div class="settings-page-card-header">
+              <span class="settings-page-card-icon">🔥</span>
+              <div>
+                <div class="settings-page-card-title">Firebase</div>
+                <div class="settings-page-card-sub">Sync your word bank across devices</div>
+              </div>
+              <span class="settings-api-badge" id="firebase-badge">Not connected</span>
+            </div>
+
+            <div class="settings-form">
+              <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1rem;">
+                Add these values to your <code>.env</code> file and restart the server.
+                Find them in <strong>Firebase Console → Project Settings → Your apps → SDK setup</strong>.
+              </p>
+
+              <div class="firebase-env-block">
+                <div class="firebase-env-title">📋 Copy this to your <code>.env</code> file:</div>
+                <pre class="firebase-env-code" id="firebase-env-preview">FIREBASE_API_KEY=
+FIREBASE_AUTH_DOMAIN=
+FIREBASE_PROJECT_ID=
+FIREBASE_STORAGE_BUCKET=
+FIREBASE_MESSAGING_SENDER_ID=
+FIREBASE_APP_ID=</pre>
+              </div>
+
+              <div class="settings-form-row" style="margin-top:1rem;">
+                <label class="settings-label">Firebase API Key</label>
+                <input class="input" id="fb-api-key" type="text" placeholder="AIzaSy…" oninput="App.updateFirebasePreview()" />
+              </div>
+              <div class="settings-form-row">
+                <label class="settings-label">Auth Domain</label>
+                <input class="input" id="fb-auth-domain" type="text" placeholder="your-project.firebaseapp.com" oninput="App.updateFirebasePreview()" />
+              </div>
+              <div class="settings-form-row">
+                <label class="settings-label">Project ID</label>
+                <input class="input" id="fb-project-id" type="text" placeholder="your-project-id" oninput="App.updateFirebasePreview()" />
+              </div>
+              <div class="settings-form-row">
+                <label class="settings-label">Storage Bucket</label>
+                <input class="input" id="fb-storage-bucket" type="text" placeholder="your-project.appspot.com" oninput="App.updateFirebasePreview()" />
+              </div>
+              <div class="settings-form-row">
+                <label class="settings-label">Messaging Sender ID</label>
+                <input class="input" id="fb-sender-id" type="text" placeholder="123456789" oninput="App.updateFirebasePreview()" />
+              </div>
+              <div class="settings-form-row">
+                <label class="settings-label">App ID</label>
+                <input class="input" id="fb-app-id" type="text" placeholder="1:123:web:abc" oninput="App.updateFirebasePreview()" />
+              </div>
+
+              <a href="https://console.firebase.google.com" target="_blank" class="btn btn-ghost" style="margin-top:0.75rem;display:inline-flex;align-items:center;gap:6px;">
+                🔥 Open Firebase Console →
+              </a>
+            </div>
+          </div>
+
+          <!-- ── Data Management (Shared) ── -->
+          <div class="settings-page-card dev-only">
+            <div class="settings-page-card-header">
+              <span class="settings-page-card-icon">💾</span>
+              <div>
+                <div class="settings-page-card-title">Data Management</div>
+                <div class="settings-page-card-sub">Export, import, or clear your word bank</div>
+              </div>
+            </div>
+            <div class="settings-form">
+              <div class="data-actions-grid">
+                <button class="btn btn-secondary" onclick="App.exportWordBank()">
+                  ⬇ Export JSON
+                </button>
+                <button class="btn btn-secondary" onclick="App.exportCSV()">
+                  📊 Export CSV
+                </button>
+                <label class="btn btn-secondary" style="cursor:pointer;">
+                  ⬆ Import JSON
+                  <input type="file" accept=".json" style="display:none" onchange="App.importWordBank(event)" />
+                </label>
+                <button class="btn btn-danger" onclick="App.clearAllData()">
+                  🗑 Clear All Data
+                </button>
+              </div>
+              <div style="margin-top:1rem;padding:1rem;background:rgba(255,60,65,0.07);border:1px solid rgba(255,60,65,0.2);border-radius:var(--radius-md);font-size:0.82rem;color:var(--text-secondary);">
+                ⚠ "Clear All Data" removes your entire word bank and history from localStorage. This cannot be undone unless you have a JSON export.
+              </div>
+            </div>
+          </div>
+
+          <!-- ── How to run the server (Development Only) ── -->
+          <div class="settings-page-card dev-only">
+            <div class="settings-page-card-header">
+              <span class="settings-page-card-icon">🚀</span>
+              <div>
+                <div class="settings-page-card-title">Running the Backend</div>
+                <div class="settings-page-card-sub">Needed for API key security and full features</div>
+              </div>
+            </div>
+            <div class="settings-form">
+              <div class="code-steps">
+                <div class="code-step">
+                  <div class="code-step-num">1</div>
+                  <div>
+                    <div class="code-step-label">Install dependencies</div>
+                    <code class="code-block">npm install</code>
+                  </div>
+                </div>
+                <div class="code-step">
+                  <div class="code-step-num">2</div>
+                  <div>
+                    <div class="code-step-label">Create your env file</div>
+                    <code class="code-block">cp .env.example .env</code>
+                  </div>
+                </div>
+                <div class="code-step">
+                  <div class="code-step-num">3</div>
+                  <div>
+                    <div class="code-step-label">Add your API keys to .env, then start</div>
+                    <code class="code-block">npm start</code>
+                  </div>
+                </div>
+                <div class="code-step">
+                  <div class="code-step-num">4</div>
+                  <div>
+                    <div class="code-step-label">Open in browser</div>
+                    <code class="code-block">http://localhost:3000</code>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /settings-grid -->
+      </div><!-- /view-settings -->
+
+    </div><!-- /container -->
+  </main>
+
+  <!-- ── Mobile Bottom Nav ── -->
+  <nav class="mobile-nav" aria-label="Mobile navigation">
+    <div class="mobile-nav-inner">
+      <button class="mobile-nav-btn active" data-tab="translate">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/>
+          <path d="M8 12h8M12 8v8"/>
+        </svg>
+        Translate
+      </button>
+      <button class="mobile-nav-btn" data-tab="bank">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+        </svg>
+        Bank
+      </button>
+      <button class="mobile-nav-btn" data-tab="exercises">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+        </svg>
+        Practice
+      </button>
+      <button class="mobile-nav-btn" data-tab="insights">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>
+          <line x1="6" y1="20" x2="6" y2="14"/>
+        </svg>
+        Insights
+      </button>
+      <button class="mobile-nav-btn" data-tab="settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+        Settings
+      </button>
+    </div>
+  </nav>
+
+  <!-- ── Toast Container ── -->
+  <div class="toast-container" id="toast-container" aria-live="polite"></div>
+
+</div><!-- /app -->
+
+<!-- Firebase Compat SDK (exposes global `firebase` object for plain scripts) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-analytics-compat.js"></script>
+<script>
+  firebase.initializeApp({
+    apiKey:            "AIzaSyCKz3VT8lYsQX6qLNooWu8KNyHhdsmR404",
+    authDomain:        "my-german-builder.firebaseapp.com",
+    projectId:         "my-german-builder",
+    storageBucket:     "my-german-builder.firebasestorage.app",
+    messagingSenderId: "663438543323",
+    appId:             "1:663438543323:web:2ef7d625bb815eef867ffe",
+    measurementId:     "G-VFS69Y0VQF"
+  });
+  firebase.analytics();
+</script>
+
+<!-- Scripts (load order: Firebase globals must come first) -->
+<script src="js/auth.js?v=1.0.4"></script>
+<script src="js/db.js?v=1.0.4"></script>
+<script src="js/categories.js?v=1.0.4"></script>
+<script src="js/wordbank.js?v=1.0.4"></script>
+<script src="js/cefr.js?v=1.0.4"></script>
+<script src="js/translator.js?v=1.0.4"></script>
+<script src="js/exercises.js?v=1.0.4"></script>
+<script src="js/insights.js?v=1.0.4"></script>
+<script src="js/app.js?v=1.0.4"></script>
+<script>
+  function togglePasswordVisibility(inputId) {
+    const el = document.getElementById(inputId);
+    if (el) el.type = el.type === 'password' ? 'text' : 'password';
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    // Wire login-screen buttons
+    document.getElementById('google-signin-btn')
+      .addEventListener('click', () => App.loginWithGoogle());
+    document.getElementById('guest-signin-btn')
+      .addEventListener('click', () => App.loginAsGuest());
+
+    // Close user dropdown when clicking outside
+    document.addEventListener('click', e => {
+      const dropdown = document.getElementById('user-dropdown');
+      const avatar   = document.getElementById('nav-avatar');
+      if (dropdown && !dropdown.classList.contains('hidden')) {
+        if (!avatar.contains(e.target) && !dropdown.contains(e.target)) {
+          dropdown.classList.add('hidden');
+        }
+      }
+    });
+
+    // Start auth — triggers handleAuthChange() on every state change
+    Auth.onAuthChange(user => App.handleAuthChange(user));
+    Auth.init();
+
+    // Register Service Worker for PWA offline features
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => console.log('[Service Worker] Registered successfully', reg.scope))
+          .catch(err => console.warn('[Service Worker] Registration failed', err));
+      });
+    }
+  });
+</script>
+
+
+</body>
+</html>
