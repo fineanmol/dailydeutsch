@@ -302,7 +302,28 @@ const App = (() => {
     if (!text) return;
 
     clearTimeout(translateDebounceTimer);
-    const delay = immediate ? 0 : 750;
+    
+    let delay = 750; // fallback default
+    if (immediate) {
+      delay = 0;
+    } else {
+      const hasSpaces = /\s+/.test(text);
+      const endsWithPunctuation = /[.!?]$/.test(text);
+
+      if (hasSpaces) {
+        if (endsWithPunctuation) {
+          // Finished a sentence with standard punctuation, translate after a short pause
+          delay = 1000;
+        } else {
+          // Mid-sentence or typing a phrase with spaces, wait longer
+          // so it won't count as a translation in mid sentence
+          delay = 3000;
+        }
+      } else {
+        // Just typing a single word, translate after a moderate pause
+        delay = 1500;
+      }
+    }
 
     translateDebounceTimer = setTimeout(async () => {
       setResultLoading(true);

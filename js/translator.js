@@ -13,6 +13,10 @@ const Translator = (() => {
   // Detect if running behind the Node backend
   const IS_SERVER = window.location.protocol !== 'file:';
 
+  // Simple in-memory translation caches to avoid duplicate network requests
+  const translationCache = new Map();
+  const levelVariationsCache = new Map();
+
   // ── Settings (client-side overrides for browser-stored keys) ──
   function loadSettings() {
     try {
@@ -126,15 +130,21 @@ const Translator = (() => {
   // ── Main translate ────────────────────────────────────────────
   async function translate(text) {
     if (!text?.trim()) return null;
+    const cleanText = text.trim();
+
+    if (translationCache.has(cleanText)) {
+      return translationCache.get(cleanText);
+    }
 
     const status = await fetchServerStatus();
+    let result;
 
     if (IS_SERVER && status) {
       // Ask the backend (keeps API keys safe)
-      const main = await translateViaServer(text);
+      const main = await translateViaServer(cleanText);
       // Fetch synonyms separately if main didn't include them
       if (!main.alternatives || main.alternatives.length === 0) {
-        main.alternatives = await synonymsViaServer(text);
+        main.alternatives = await synonymsViaServer(cleanText);
       }
       // Filter out the main translation from alternatives
       if (main.alternatives) {
@@ -142,16 +152,28 @@ const Translator = (() => {
           a => a.text.toLowerCase() !== main.text.toLowerCase()
         );
       }
-      return main;
+      result = main;
     } else {
       // file:// fallback or static hosting fallback — call MyMemory directly from browser
-      return translateMyMemoryDirect(text);
+      result = await translateMyMemoryDirect(cleanText);
     }
+
+    if (result) {
+      translationCache.set(cleanText, result);
+    }
+    return result;
   }
 
   // ── Level Variations ──────────────────────────────────────────
   // Uses MyMemory matches scored by complexity to show A1–B2 styles
   async function translateAllLevels(text, primaryTranslation) {
+    if (!text?.trim()) return null;
+    const cleanText = text.trim();
+    const cacheKey = `${cleanText}||${primaryTranslation}`;
+    if (levelVariationsCache.has(cacheKey)) {
+      return levelVariationsCache.get(cacheKey);
+    }
+
     try {
       let alternatives = [];
 
@@ -194,32 +216,40 @@ const Translator = (() => {
         B2: { note: 'Upper-intermediate — precise word choice',     style: 'More formal / precise' },
       };
 
-      if (n >= 4) return {
-        A1: { ...pick(0),    ...meta.A1 },
-        A2: { ...pick(0.30), ...meta.A2 },
-        B1: { ...pick(0.60), ...meta.B1 },
-        B2: { ...pick(0.95), ...meta.B2 },
-      };
-      if (n === 3) return {
-        A1: { ...scored[0], ...meta.A1 },
-        A2: { ...scored[1], ...meta.A2 },
-        B1: { ...scored[2], ...meta.B1 },
-        B2: { ...scored[2], ...meta.B2, note: 'Same as B1 — limited variants found' },
-      };
-      if (n === 2) return {
-        A1: { ...scored[0], ...meta.A1 },
-        A2: { ...scored[0], ...meta.A2 },
-        B1: { ...scored[1], ...meta.B1 },
-        B2: { ...scored[1], ...meta.B2 },
-      };
-      // Only one
-      const lvl = typeof CEFR !== 'undefined' ? CEFR.getLevel(scored[0]?.text || '') : 'B1';
-      return {
-        A1: { ...scored[0], ...meta.A1, note: `Word is ${lvl} level — limited variants` },
-        A2: { ...scored[0], ...meta.A2, note: `Word is ${lvl} level — limited variants` },
-        B1: { ...scored[0], ...meta.B1, note: `Word is ${lvl} level — limited variants` },
-        B2: { ...scored[0], ...meta.B2, note: `Word is ${lvl} level — limited variants` },
-      };
+      let variationsResult;
+      if (n >= 4) {
+        variationsResult = {
+          A1: { ...pick(0),    ...meta.A1 },
+          A2: { ...pick(0.30), ...meta.A2 },
+          B1: { ...pick(0.60), ...meta.B1 },
+          B2: { ...pick(0.95), ...meta.B2 },
+        };
+      } else if (n === 3) {
+        variationsResult = {
+          A1: { ...scored[0], ...meta.A1 },
+          A2: { ...scored[1], ...meta.A2 },
+          B1: { ...scored[2], ...meta.B1 },
+          B2: { ...scored[2], ...meta.B2, note: 'Same as B1 — limited variants found' },
+        };
+      } else if (n === 2) {
+        variationsResult = {
+          A1: { ...scored[0], ...meta.A1 },
+          A2: { ...scored[0], ...meta.A2 },
+          B1: { ...scored[1], ...meta.B1 },
+          B2: { ...scored[1], ...meta.B2 },
+        };
+      } else {
+        const lvl = typeof CEFR !== 'undefined' ? CEFR.getLevel(scored[0]?.text || '') : 'B1';
+        variationsResult = {
+          A1: { ...scored[0], ...meta.A1, note: `Word is ${lvl} level — limited variants` },
+          A2: { ...scored[0], ...meta.A2, note: `Word is ${lvl} level — limited variants` },
+          B1: { ...scored[0], ...meta.B1, note: `Word is ${lvl} level — limited variants` },
+          B2: { ...scored[0], ...meta.B2, note: `Word is ${lvl} level — limited variants` },
+        };
+      }
+
+      levelVariationsCache.set(cacheKey, variationsResult);
+      return variationsResult;
     } catch (e) {
       console.error('Level variations failed:', e);
       return null;
