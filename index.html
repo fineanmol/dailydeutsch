@@ -264,8 +264,11 @@
         <div class="section-header">
           <div>
             <h1 class="section-title">Translate &amp; Learn</h1>
-            <p class="section-subtitle">Type English, get German — save words you use daily</p>
+            <p class="section-subtitle" id="translator-subtitle">Type English, get German — save words you use daily</p>
           </div>
+          <button class="btn btn-secondary btn-sm" id="swap-languages-btn" style="border-radius: var(--radius-full); padding: 8px 16px; font-size: 0.8rem; display: flex; align-items: center; gap: 6px;" title="Swap translation direction">
+            <span id="swap-btn-label">English ⇄ German</span>
+          </button>
         </div>
 
         <div class="translator-grid">
@@ -273,7 +276,7 @@
           <!-- Input Panel -->
           <div class="translator-panel">
             <div class="translator-panel-header">
-              <div class="lang-label"><span class="lang-flag">🇬🇧</span> English</div>
+              <div class="lang-label" id="source-lang-label"><span class="lang-flag">🇬🇧</span> English</div>
               <button class="btn btn-ghost btn-sm" id="clear-btn"
                 onclick="document.getElementById('translate-input').value='';document.getElementById('char-count').textContent='0 / 500';App&&App.clearResult&&App.clearResult();">
                 Clear
@@ -302,7 +305,7 @@
           <!-- Result Panel -->
           <div class="translator-panel result-panel">
             <div class="translator-panel-header">
-              <div class="lang-label"><span class="lang-flag">🇩🇪</span> German</div>
+              <div class="lang-label" id="target-lang-label"><span class="lang-flag">🇩🇪</span> German</div>
               <button class="btn btn-ghost btn-sm" id="copy-btn" title="Copy translation"
                 onclick="const t=document.getElementById('translation-display');if(t)navigator.clipboard.writeText(t.textContent).then(()=>App.showToast('Copied!','success'));">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -337,6 +340,9 @@
 
             <!-- Level variations panel (A1–B2 cards) -->
             <div id="level-variations-panel" class="level-variations-panel hidden"></div>
+
+            <!-- AI Writing Assistant (for German input) -->
+            <div id="ai-writing-assistant" class="ai-writing-assistant hidden"></div>
 
             <!-- Save bar -->
             <div id="save-action-bar" class="save-action-bar hidden">

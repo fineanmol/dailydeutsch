@@ -12,15 +12,20 @@ const App = (() => {
   document.body.classList.toggle('dev-mode', !isProd);
 
   // ── Text-to-Speech Pronunciation ──────────────────────────────
-  function speakGerman(text) {
+  function speakText(text, lang = 'de-DE') {
     if (!text || !('speechSynthesis' in window)) return;
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'de-DE';
+    utterance.lang = lang;
     const voices = window.speechSynthesis.getVoices();
-    const deVoice = voices.find(voice => voice.lang.startsWith('de') || voice.lang === 'de-DE');
-    if (deVoice) utterance.voice = deVoice;
+    const prefix = lang.split('-')[0];
+    const matchVoice = voices.find(voice => voice.lang.startsWith(prefix) || voice.lang === lang);
+    if (matchVoice) utterance.voice = matchVoice;
     window.speechSynthesis.speak(utterance);
+  }
+
+  function speakGerman(text) {
+    speakText(text, 'de-DE');
   }
 
   // Pre-load voices cache
@@ -138,6 +143,7 @@ const App = (() => {
   // ── State ────────────────────────────────────────────────────
   let state = {
     currentView: 'translate',
+    translationDirection: 'en-de', // 'en-de' or 'de-en'
     currentTranslation: null,
     currentEnglish: '',
     currentAlternatives: [],
@@ -273,6 +279,58 @@ const App = (() => {
     const translateBtn = document.getElementById('translate-btn');
     const saveBtn = document.getElementById('save-word-btn');
     const charCount = document.getElementById('char-count');
+    const swapBtn = document.getElementById('swap-languages-btn');
+
+    swapBtn?.addEventListener('click', () => {
+      state.translationDirection = state.translationDirection === 'en-de' ? 'de-en' : 'en-de';
+      
+      const subtitle = document.getElementById('translator-subtitle');
+      const swapLabel = document.getElementById('swap-btn-label');
+      const sourceLabel = document.getElementById('source-lang-label');
+      const targetLabel = document.getElementById('target-lang-label');
+      
+      const isEnDe = state.translationDirection === 'en-de';
+      
+      if (subtitle) {
+        subtitle.textContent = isEnDe 
+          ? 'Type English, get German — save words you use daily' 
+          : 'Type German, get English — check your level and writing';
+      }
+      
+      if (swapLabel) {
+        swapLabel.textContent = isEnDe ? 'English ⇄ German' : 'German ⇄ English';
+      }
+      
+      if (sourceLabel) {
+        sourceLabel.innerHTML = isEnDe 
+          ? '<span class="lang-flag">🇬🇧</span> English' 
+          : '<span class="lang-flag">🇩🇪</span> German';
+      }
+      
+      if (targetLabel) {
+        targetLabel.innerHTML = isEnDe 
+          ? '<span class="lang-flag">🇩🇪</span> German' 
+          : '<span class="lang-flag">🇬🇧</span> English';
+      }
+      
+      if (input) {
+        input.placeholder = isEnDe 
+          ? 'Type or paste English text here…' 
+          : 'Type or paste German text here…';
+          
+        const resultDisplay = document.getElementById('translation-display');
+        const currentResultText = resultDisplay ? resultDisplay.textContent.trim() : '';
+        const currentInputText = input.value.trim();
+        
+        if (currentInputText && currentResultText && !currentResultText.startsWith('Translation will appear') && !currentResultText.includes('failed')) {
+          input.value = currentResultText;
+          if (charCount) charCount.textContent = `${currentResultText.length} / 500`;
+          doTranslate(true);
+        } else {
+          clearResult();
+        }
+      }
+    });
 
     input?.addEventListener('input', () => {
       const len = input.value.length;
@@ -334,29 +392,39 @@ const App = (() => {
       hideLevelVariations();
 
       try {
-        const result = await Translator.translate(text);
+        const isEnDe = state.translationDirection === 'en-de';
+        const fromLang = isEnDe ? 'en' : 'de';
+        const toLang = isEnDe ? 'de' : 'en';
+
+        const result = await Translator.translate(text, fromLang, toLang);
         if (result && result.text) {
-          state.currentEnglish = text;
-          state.currentTranslation = result.text;
+          state.currentEnglish = isEnDe ? text : result.text;
+          state.currentTranslation = isEnDe ? result.text : text;
           state.currentAlternatives = result.alternatives || [];
           state.currentAltIndex = -1;
           state.currentProvider = result.provider;
 
-          const category = Categories.detectCategory(text);
-          const pos = Categories.detectPartOfSpeech(text);
-          const cefrLevel = typeof CEFR !== 'undefined' ? CEFR.getLevel(result.text) : 'B1';
+          const category = Categories.detectCategory(state.currentEnglish);
+          const pos = Categories.detectPartOfSpeech(state.currentEnglish);
+          const cefrLevel = typeof CEFR !== 'undefined' ? CEFR.getLevel(state.currentTranslation) : 'B1';
           state.currentCEFR = cefrLevel;
 
           setResultLoading(false); // clear spinner before rendering result
           displayResult(text, result.text, result.alternatives, cefrLevel, result.provider, category, pos);
 
-          WordBank.addToHistory({ english: text, german: result.text, category });
+          WordBank.addToHistory({ english: state.currentEnglish, german: state.currentTranslation, category });
           renderRecentTranslations();
           updateNavStats();
           updateProviderIndicator();
 
-          // Fetch level variations in background
-          fetchLevelVariations(text, result.text);
+          if (isEnDe) {
+            // Fetch level variations in background
+            fetchLevelVariations(text, result.text);
+            document.getElementById('ai-writing-assistant')?.classList.add('hidden');
+          } else {
+            // German to English: Analyze German sentence with Gemini!
+            analyzeGermanSentence(text);
+          }
         } else {
           console.error('Translation returned empty result:', result);
           setResultError('Empty response from translation service');
@@ -389,10 +457,11 @@ const App = (() => {
     const providerIcon = { DeepL: '🔷', Google: '🔍', MyMemory: '🌐' }[provider] || '🌐';
 
     // Main translation text
+    const targetLangCode = state.translationDirection === 'en-de' ? 'de-DE' : 'en-US';
     resultArea.innerHTML = `
       <div style="display:flex; align-items:center; justify-content:center; gap:var(--space-sm); flex-wrap:wrap;">
         <div id="translation-display" class="result-text translation-animated" style="margin:0">${formatGermanWord(german)}</div>
-        <button class="btn btn-ghost btn-icon speaker-btn" onclick="App.speakGerman(document.getElementById('translation-display').textContent)" title="Hear pronunciation" style="font-size:1.4rem; padding:6px; height:auto; width:auto; border-radius:50%;">
+        <button class="btn btn-ghost btn-icon speaker-btn" onclick="App.speakText(document.getElementById('translation-display').textContent, '${targetLangCode}')" title="Hear pronunciation" style="font-size:1.4rem; padding:6px; height:auto; width:auto; border-radius:50%;">
           🔊
         </button>
       </div>`;
@@ -673,6 +742,7 @@ const App = (() => {
     synRow?.classList.add('hidden');
     lvlBtn?.classList.add('hidden');
     lvlPanel?.classList.add('hidden');
+    document.getElementById('ai-writing-assistant')?.classList.add('hidden');
 
     state.currentTranslation = null;
     state.currentEnglish = '';
@@ -797,6 +867,10 @@ const App = (() => {
   }
 
   function loadFromHistory(english, german) {
+    if (state.translationDirection !== 'en-de') {
+      const swapBtn = document.getElementById('swap-languages-btn');
+      if (swapBtn) swapBtn.click();
+    }
     const input = document.getElementById('translate-input');
     if (input) { input.value = english; }
     const charCount = document.getElementById('char-count');
@@ -1691,6 +1765,141 @@ const App = (() => {
     }
   }
 
+  function applyBetterPhrasing(text) {
+    const input = document.getElementById('translate-input');
+    if (input) {
+      input.value = text;
+      const charCount = document.getElementById('char-count');
+      if (charCount) charCount.textContent = `${text.length} / 500`;
+      doTranslate(true);
+      showToast('Applied improved phrasing! ✨', 'success');
+    }
+  }
+
+  async function analyzeGermanSentence(germanText) {
+    const container = document.getElementById('ai-writing-assistant');
+    if (!container) return;
+
+    const geminiKey = getGeminiKey();
+    if (!geminiKey) {
+      container.innerHTML = `
+        <div class="ai-writing-assistant-header">
+          <div class="ai-writing-assistant-title">🤖 AI Writing Assistant</div>
+        </div>
+        <div class="ai-writing-assistant-body">
+          <p style="margin-bottom: 8px;">Get instant CEFR levels, grammar feedback, and natural phrasing suggestions for your German text.</p>
+          <button class="btn btn-secondary btn-sm" onclick="App.navigateTo('settings')">
+            🔑 Configure Gemini API Key →
+          </button>
+        </div>
+      `;
+      container.classList.remove('hidden');
+      return;
+    }
+
+    container.innerHTML = `
+      <div class="ai-writing-assistant-header">
+        <div class="ai-writing-assistant-title">🤖 AI Writing Assistant</div>
+        <div class="spinner" style="width:14px; height:14px; border-width:2px; margin:0;"></div>
+      </div>
+      <div class="ai-writing-assistant-body" style="color:var(--text-muted)">
+        Analyzing sentence complexity, CEFR level, and phrasing…
+      </div>
+    `;
+    container.classList.remove('hidden');
+
+    try {
+      const prompt = `Analyze the German sentence "${germanText}".
+      Provide an assessment of its CEFR level (A1, A2, B1, B2, C1, or C2) and suggestions for improving it to sound more natural, grammatically correct, or sophisticated.
+      Return a JSON object with this EXACT structure:
+      {
+        "cefrLevel": "A1/A2/B1/B2/C1/C2",
+        "cefrTitle": "Beginner / Intermediate / Advanced / etc.",
+        "analysis": "A very brief explanation of the sentence structure or grammar.",
+        "improvements": [
+          {
+            "original": "part of the sentence that can be improved (or empty string if none)",
+            "improved": "the improved version (or empty string if none)",
+            "reason": "explanation of the change (or empty string if none)"
+          }
+        ],
+        "betterVersion": "An improved, more natural or advanced version of the sentence. If the sentence is already perfect and high level, repeat the original sentence.",
+        "betterLevel": "The CEFR level of the improved sentence."
+      }`;
+
+      const res = await callGemini(prompt, true);
+      if (!res || !res.cefrLevel) throw new Error('Invalid response from AI');
+
+      const levelColors = {
+        A1: { color: '#47cf73', bg: 'rgba(71,207,115,0.08)', border: 'rgba(71,207,115,0.22)' },
+        A2: { color: '#0ebeff', bg: 'rgba(14,190,255,0.08)', border: 'rgba(14,190,255,0.22)' },
+        B1: { color: '#fcd000', bg: 'rgba(252,208,0,0.08)', border: 'rgba(252,208,0,0.22)' },
+        B2: { color: '#ae63e4', bg: 'rgba(174,99,228,0.08)', border: 'rgba(174,99,228,0.22)' },
+        C1: { color: '#ff3c41', bg: 'rgba(255,60,65,0.08)', border: 'rgba(255,60,65,0.22)' },
+        C2: { color: '#ff3c41', bg: 'rgba(255,60,65,0.08)', border: 'rgba(255,60,65,0.22)' },
+      };
+
+      const meta = levelColors[res.cefrLevel] || { color: '#ae63e4', bg: 'rgba(174,99,228,0.08)', border: 'rgba(174,99,228,0.22)' };
+
+      let improvementsHtml = '';
+      if (res.improvements && res.improvements.length > 0 && res.improvements[0].original) {
+        improvementsHtml = `
+          <div class="ai-writing-assistant-improvements">
+            <div class="ai-writing-assistant-improvements-title">Refinements Suggestions</div>
+            <div class="ai-writing-assistant-improvements-list">
+              ${res.improvements.map(imp => `
+                <div class="ai-writing-assistant-improvement-item">
+                  <div class="ai-writing-assistant-improvement-orig">“${escHtml(imp.original)}”</div>
+                  <div class="ai-writing-assistant-improvement-new">➔ “${escHtml(imp.improved)}”</div>
+                  <div class="ai-writing-assistant-improvement-reason">${escHtml(imp.reason)}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      const betterHtml = `
+        <div class="ai-writing-assistant-better">
+          <div class="ai-writing-assistant-better-title">Elevated Version (${res.betterLevel})</div>
+          <div class="ai-writing-assistant-better-text">
+            <span id="ai-better-display">${escHtml(res.betterVersion)}</span>
+            <div style="display: flex; gap: 6px;">
+              <button class="btn btn-ghost btn-sm btn-icon" onclick="App.speakGerman(document.getElementById('ai-better-display').textContent)" title="Hear pronunciation" style="padding: 2px; width: 28px; height: 28px; border-radius: 50%;">🔊</button>
+              <button class="btn btn-ghost btn-sm" onclick="App.applyBetterPhrasing('${escAttr(res.betterVersion)}')" style="padding: 2px 8px; font-size: 0.75rem;">Use this</button>
+            </div>
+          </div>
+          ${res.betterVersion.toLowerCase().trim() !== germanText.toLowerCase().trim() 
+            ? `<div class="ai-writing-assistant-better-explain">${escHtml(res.analysis)}</div>` 
+            : `<div class="ai-writing-assistant-better-explain">Your sentence is grammatically correct and natural! Great job.</div>`}
+        </div>
+      `;
+
+      container.innerHTML = `
+        <div class="ai-writing-assistant-header">
+          <div class="ai-writing-assistant-title">🤖 AI Writing Assistant</div>
+          <span class="ai-writing-assistant-cefr-badge" style="color: ${meta.color}; background: ${meta.bg}; border: 1px solid ${meta.border}; text-shadow: none;">
+            Level: ${res.cefrLevel}
+          </span>
+        </div>
+        <div class="ai-writing-assistant-body">
+          ${betterHtml}
+          ${improvementsHtml}
+        </div>
+      `;
+    } catch (e) {
+      console.warn('[AI Writing Assistant failed]', e);
+      container.innerHTML = `
+        <div class="ai-writing-assistant-header">
+          <div class="ai-writing-assistant-title">🤖 AI Writing Assistant</div>
+        </div>
+        <div class="ai-writing-assistant-body" style="color: var(--accent-red)">
+          Failed to analyze writing: ${e.message}
+        </div>
+      `;
+    }
+  }
+
   function nextQuestion() {
     state.exerciseIndex++;
     if (state.exerciseMode === 'mc') renderMCQuestion();
@@ -1711,7 +1920,7 @@ const App = (() => {
     handleAuthChange,
     loginWithGoogle, loginAsGuest, signOut, upgradeToGoogle,
     toggleUserMenu,
-    speakGerman,
+    speakGerman, speakText,
     // AI Explanation
     explainMistake,
     nextQuestion,
@@ -1719,6 +1928,8 @@ const App = (() => {
     generateAIStory,
     saveGeminiKeyFromUI,
     updateGeminiStatusUI,
+    applyBetterPhrasing,
+    analyzeGermanSentence,
   };
 
 })();

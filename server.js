@@ -63,8 +63,11 @@ app.get('/api/firebase-config', (_req, res) => {
 
 // ── Translation proxy ─────────────────────────────────────────
 app.post('/api/translate', async (req, res) => {
-  const { text, provider: clientProvider } = req.body;
+  const { text, provider: clientProvider, from = 'en', to = 'de' } = req.body;
   if (!text || !text.trim()) return res.status(400).json({ error: 'No text provided' });
+
+  const fromLang = from.toLowerCase();
+  const toLang   = to.toLowerCase();
 
   const deeplKey  = process.env.DEEPL_KEY  || '';
   const googleKey = process.env.GOOGLE_KEY || '';
@@ -82,10 +85,12 @@ app.post('/api/translate', async (req, res) => {
         ? 'https://api-free.deepl.com/v2/translate'
         : 'https://api.deepl.com/v2/translate';
 
+      const targetLangMapped = toLang === 'en' ? 'EN-US' : toLang.toUpperCase();
+
       const r = await fetch(url, {
         method: 'POST',
         headers: { 'Authorization': `DeepL-Auth-Key ${deeplKey.trim()}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: [text], source_lang: 'EN', target_lang: 'DE' }),
+        body: JSON.stringify({ text: [text], source_lang: fromLang.toUpperCase(), target_lang: targetLangMapped }),
       });
       if (r.ok) {
         const d = await r.json();
@@ -104,7 +109,7 @@ app.post('/api/translate', async (req, res) => {
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ q: text, source: 'en', target: 'de', format: 'text' }),
+          body: JSON.stringify({ q: text, source: fromLang, target: toLang, format: 'text' }),
         }
       );
       if (r.ok) {
@@ -119,7 +124,7 @@ app.post('/api/translate', async (req, res) => {
   // ── Fallback: MyMemory (free) ─────────────────────────────────
   if (!result) {
     try {
-      const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text.trim())}&langpair=en|de`;
+      const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text.trim())}&langpair=${fromLang}|${toLang}`;
       const r = await fetch(url);
       if (r.ok) {
         const d = await r.json();
@@ -147,11 +152,11 @@ app.post('/api/translate', async (req, res) => {
 
 // ── Synonyms (always from MyMemory, separate call) ────────────
 app.post('/api/synonyms', async (req, res) => {
-  const { text } = req.body;
+  const { text, from = 'en', to = 'de' } = req.body;
   if (!text) return res.json({ alternatives: [] });
 
   try {
-    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text.trim())}&langpair=en|de`;
+    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text.trim())}&langpair=${from.toLowerCase()}|${to.toLowerCase()}`;
     const r = await fetch(url);
     const d = await r.json();
 

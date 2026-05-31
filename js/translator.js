@@ -78,12 +78,12 @@ const Translator = (() => {
   }
 
   // ── Translate via backend (/api/translate) ────────────────────
-  async function translateViaServer(text) {
+  async function translateViaServer(text, from = 'en', to = 'de') {
     const settings = loadSettings();
     const r = await fetch('/api/translate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, provider: settings.provider }),
+      body: JSON.stringify({ text, provider: settings.provider, from, to }),
     });
     if (!r.ok) throw new Error(`Server ${r.status}`);
     const data = await r.json();
@@ -92,12 +92,12 @@ const Translator = (() => {
   }
 
   // ── Synonyms via backend ──────────────────────────────────────
-  async function synonymsViaServer(text) {
+  async function synonymsViaServer(text, from = 'en', to = 'de') {
     try {
       const r = await fetch('/api/synonyms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, from, to }),
       });
       const d = await r.json();
       return d.alternatives || [];
@@ -105,8 +105,8 @@ const Translator = (() => {
   }
 
   // ── Direct MyMemory (file:// fallback) ────────────────────────
-  async function translateMyMemoryDirect(text) {
-    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text.trim())}&langpair=en|de`;
+  async function translateMyMemoryDirect(text, from = 'en', to = 'de') {
+    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text.trim())}&langpair=${from}|${to}`;
     const r = await fetch(url);
     if (!r.ok) throw new Error(`MyMemory ${r.status}`);
     const d = await r.json();
@@ -128,12 +128,13 @@ const Translator = (() => {
   }
 
   // ── Main translate ────────────────────────────────────────────
-  async function translate(text) {
+  async function translate(text, from = 'en', to = 'de') {
     if (!text?.trim()) return null;
     const cleanText = text.trim();
+    const cacheKey = `${from}-${to}:${cleanText}`;
 
-    if (translationCache.has(cleanText)) {
-      return translationCache.get(cleanText);
+    if (translationCache.has(cacheKey)) {
+      return translationCache.get(cacheKey);
     }
 
     const status = await fetchServerStatus();
@@ -141,10 +142,10 @@ const Translator = (() => {
 
     if (IS_SERVER && status) {
       // Ask the backend (keeps API keys safe)
-      const main = await translateViaServer(cleanText);
+      const main = await translateViaServer(cleanText, from, to);
       // Fetch synonyms separately if main didn't include them
       if (!main.alternatives || main.alternatives.length === 0) {
-        main.alternatives = await synonymsViaServer(cleanText);
+        main.alternatives = await synonymsViaServer(cleanText, from, to);
       }
       // Filter out the main translation from alternatives
       if (main.alternatives) {
@@ -155,11 +156,11 @@ const Translator = (() => {
       result = main;
     } else {
       // file:// fallback or static hosting fallback — call MyMemory directly from browser
-      result = await translateMyMemoryDirect(cleanText);
+      result = await translateMyMemoryDirect(cleanText, from, to);
     }
 
     if (result) {
-      translationCache.set(cleanText, result);
+      translationCache.set(cacheKey, result);
     }
     return result;
   }
