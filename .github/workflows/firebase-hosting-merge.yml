@@ -25,3 +25,4 @@ jobs:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MY_GERMAN_BUILDER }}
           projectId: my-german-builder
           target: dailydeutsch
+          channelId: live
