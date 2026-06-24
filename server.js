@@ -63,24 +63,36 @@ app.get('/api/firebase-config', (_req, res) => {
 
 // ── Translation proxy ─────────────────────────────────────────
 app.post('/api/translate', async (req, res) => {
-  const { text, provider: clientProvider, from = 'en', to = 'de' } = req.body;
+  const { text, provider: clientProvider, from = 'en', to = 'de', deeplKey: clientDeeplKey } = req.body;
   if (!text || !text.trim()) return res.status(400).json({ error: 'No text provided' });
 
   const fromLang = from.toLowerCase();
   const toLang   = to.toLowerCase();
 
-  const deeplKey  = process.env.DEEPL_KEY  || '';
+  const serverDeeplKey = process.env.DEEPL_KEY || '';
+  const allowedCodes   = (process.env.DEEPL_CODES || 'fineanmol').split(',').map(c => c.trim().toLowerCase());
+
+  let activeDeeplKey = '';
+  if (clientDeeplKey) {
+    const trimmed = clientDeeplKey.trim();
+    if (allowedCodes.includes(trimmed.toLowerCase())) {
+      activeDeeplKey = serverDeeplKey;
+    } else if (trimmed.includes('-') || trimmed.length > 20) {
+      activeDeeplKey = trimmed;
+    }
+  }
+
   const googleKey = process.env.GOOGLE_KEY || '';
   const envPref   = process.env.TRANSLATION_PROVIDER || 'auto';
-  // Client preference overrides env if the key exists server-side
+  // Client preference overrides env
   const pref = clientProvider || envPref;
 
   let result = null;
 
   // ── Try DeepL ────────────────────────────────────────────────
-  if (!result && (pref === 'auto' || pref === 'deepl') && deeplKey) {
+  if (!result && (pref === 'auto' || pref === 'deepl') && activeDeeplKey) {
     try {
-      const isFree = deeplKey.trim().endsWith(':fx');
+      const isFree = activeDeeplKey.trim().endsWith(':fx');
       const url = isFree
         ? 'https://api-free.deepl.com/v2/translate'
         : 'https://api.deepl.com/v2/translate';
@@ -89,7 +101,7 @@ app.post('/api/translate', async (req, res) => {
 
       const r = await fetch(url, {
         method: 'POST',
-        headers: { 'Authorization': `DeepL-Auth-Key ${deeplKey.trim()}`, 'Content-Type': 'application/json' },
+        headers: { 'Authorization': `DeepL-Auth-Key ${activeDeeplKey.trim()}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: [text], source_lang: fromLang.toUpperCase(), target_lang: targetLangMapped }),
       });
       if (r.ok) {
@@ -180,9 +192,9 @@ app.post('/api/synonyms', async (req, res) => {
 
 // ── Start ─────────────────────────────────────────────────────
 app.listen(PORT, () => {
-  const d = process.env.DEEPL_KEY  ? '✅ DeepL'    : '❌ DeepL (no key)';
-  const g = process.env.GOOGLE_KEY ? '✅ Google'   : '❌ Google (no key)';
-  const f = process.env.FIREBASE_PROJECT_ID ? '✅ Firebase' : '❌ Firebase (not configured)';
+  const d = process.env.DEEPL_KEY  ? '✅ DeepL (code-auth active)' : '❌ DeepL (no key)';
+  const g = process.env.GOOGLE_KEY ? '✅ Google'                   : '❌ Google (no key)';
+  const f = process.env.FIREBASE_PROJECT_ID ? '✅ Firebase'        : '❌ Firebase (not configured)';
   console.log(`
 ╔══════════════════════════════════════╗
 ║   🇩🇪  Mein Wörterbuch  — ready      ║
