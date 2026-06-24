@@ -2943,3 +2943,79 @@ body.dev-mode .prod-only {
   margin-top: 2px;
 }
 
+/* ── Verb Conjugations Panel ── */
+.verb-conjugations-panel {
+  margin: 0 var(--space-lg) var(--space-lg) var(--space-lg);
+  padding: var(--space-lg);
+  background: linear-gradient(135deg, rgba(71, 207, 115, 0.06), rgba(14, 190, 255, 0.04));
+  border: 1px solid rgba(71, 207, 115, 0.18);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  transition: all var(--transition-base);
+}
+
+.verb-conjugations-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  border-bottom: 1px solid rgba(71, 207, 115, 0.12);
+  padding-bottom: 8px;
+}
+
+.verb-conjugations-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--accent-green);
+}
+
+.verb-conjugations-table-wrapper {
+  overflow-x: auto;
+  width: 100%;
+}
+
+.conjugation-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  text-align: left;
+}
+
+.conjugation-table th, .conjugation-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.conjugation-table th {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: rgba(0, 0, 0, 0.02);
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+}
+
+.conjugation-table tr:hover {
+  background: rgba(71, 207, 115, 0.03);
+}
+
+.conjugation-pronoun {
+  font-weight: 600;
+  color: var(--text-muted);
+  width: 20%;
+}
+
+.conjugation-verb-form {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+

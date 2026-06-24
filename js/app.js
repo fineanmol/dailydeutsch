@@ -152,6 +152,8 @@ const App = (() => {
     currentProvider: 'MyMemory',
     levelVariations: null,
     levelVariationsOpen: false,
+    verbConjugations: null,
+    verbConjugationsOpen: false,
     wordBankFilter: 'all',
     wordBankSearch: '',
     exerciseMode: null,
@@ -391,6 +393,9 @@ const App = (() => {
       state.levelVariationsOpen = false;
       hideLevelVariations();
 
+      // Reset verb conjugations
+      hideVerbConjugations();
+
       try {
         const isEnDe = state.translationDirection === 'en-de';
         const fromLang = isEnDe ? 'en' : 'de';
@@ -488,6 +493,16 @@ const App = (() => {
     // Level variations button (hidden until fetched)
     const lvlBtn = document.getElementById('level-variations-btn');
     if (lvlBtn) lvlBtn.classList.add('hidden');
+
+    // Verb conjugation button
+    const conjBtn = document.getElementById('verb-conjugations-btn');
+    if (conjBtn) {
+      if (pos === 'verb') {
+        conjBtn.classList.remove('hidden');
+      } else {
+        conjBtn.classList.add('hidden');
+      }
+    }
 
     saveBar.classList.remove('hidden');
   }
@@ -743,6 +758,7 @@ const App = (() => {
     lvlBtn?.classList.add('hidden');
     lvlPanel?.classList.add('hidden');
     document.getElementById('ai-writing-assistant')?.classList.add('hidden');
+    hideVerbConjugations();
 
     state.currentTranslation = null;
     state.currentEnglish = '';
@@ -1900,6 +1916,177 @@ const App = (() => {
     }
   }
 
+  function toggleVerbConjugations() {
+    state.verbConjugationsOpen = !state.verbConjugationsOpen;
+    const panel = document.getElementById('verb-conjugations-panel');
+    const btn = document.getElementById('verb-conjugations-btn');
+
+    if (state.verbConjugationsOpen) {
+      panel?.classList.remove('hidden');
+      if (btn) btn.textContent = '▲ Hide Verb Conjugations';
+      
+      if (!state.verbConjugations && state.currentTranslation) {
+        const isEnDe = state.translationDirection === 'en-de';
+        const germanVerb = isEnDe ? state.currentTranslation : state.currentEnglish;
+        fetchVerbConjugations(germanVerb);
+      } else if (state.verbConjugations) {
+        renderVerbConjugations(state.verbConjugations);
+      }
+    } else {
+      panel?.classList.add('hidden');
+      if (btn) btn.textContent = '📊 Show Verb Conjugations';
+    }
+  }
+
+  function hideVerbConjugations() {
+    const panel = document.getElementById('verb-conjugations-panel');
+    const btn = document.getElementById('verb-conjugations-btn');
+    panel?.classList.add('hidden');
+    if (btn) {
+      btn.textContent = '📊 Show Verb Conjugations';
+      btn.classList.add('hidden');
+    }
+    state.verbConjugationsOpen = false;
+    state.verbConjugations = null;
+  }
+
+  async function fetchVerbConjugations(germanVerb) {
+    const container = document.getElementById('verb-conjugations-panel');
+    if (!container) return;
+
+    const geminiKey = getGeminiKey();
+    if (!geminiKey) {
+      container.innerHTML = `
+        <div class="verb-conjugations-header">
+          <div class="verb-conjugations-title">📊 Verb Conjugations</div>
+        </div>
+        <div style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.45;">
+          <p style="margin-bottom: 8px;">View conjugation tables for Present, Past, and Future tenses. Requires a Gemini API Key.</p>
+          <button class="btn btn-secondary btn-sm" onclick="App.navigateTo('settings')">
+            🔑 Configure Gemini API Key →
+          </button>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = `
+      <div class="verb-conjugations-header">
+        <div class="verb-conjugations-title">📊 Verb Conjugations</div>
+        <div class="spinner" style="width:14px; height:14px; border-width:2px; margin:0;"></div>
+      </div>
+      <div style="font-size:0.88rem; color:var(--text-muted)">
+        Generating conjugation table for "${germanVerb}"…
+      </div>
+    `;
+
+    try {
+      const prompt = `You are a German grammar helper. Conjugate the German verb "${germanVerb}" in the following tenses:
+      1. Present (Präsens)
+      2. Simple Past (Präteritum)
+      3. Present Perfect (Perfekt)
+      4. Future (Futur I)
+      
+      For each tense, provide the conjugated form for the pronouns: ich, du, er/sie/es, wir, ihr, sie/Sie.
+      Return a JSON object with this EXACT structure:
+      {
+        "verb": "${germanVerb}",
+        "meaning": "English meaning",
+        "conjugations": {
+          "present": { "ich": "...", "du": "...", "er_sie_es": "...", "wir": "...", "ihr": "...", "sie_Sie": "..." },
+          "past_simple": { "ich": "...", "du": "...", "er_sie_es": "...", "wir": "...", "ihr": "...", "sie_Sie": "..." },
+          "past_perfect": { "ich": "...", "du": "...", "er_sie_es": "...", "wir": "...", "ihr": "...", "sie_Sie": "..." },
+          "future": { "ich": "...", "du": "...", "er_sie_es": "...", "wir": "...", "ihr": "...", "sie_Sie": "..." }
+        }
+      }`;
+
+      const res = await callGemini(prompt, true);
+      if (!res || !res.conjugations) throw new Error('Invalid response from AI');
+
+      state.verbConjugations = res;
+      renderVerbConjugations(res);
+    } catch (e) {
+      console.warn('[Verb conjugation failed]', e);
+      container.innerHTML = `
+        <div class="verb-conjugations-header">
+          <div class="verb-conjugations-title">📊 Verb Conjugations</div>
+        </div>
+        <div style="font-size: 0.88rem; color: var(--accent-red)">
+          Failed to generate conjugations: ${e.message}
+        </div>
+      `;
+    }
+  }
+
+  function renderVerbConjugations(data) {
+    const container = document.getElementById('verb-conjugations-panel');
+    if (!container || !data) return;
+
+    const c = data.conjugations;
+    container.innerHTML = `
+      <div class="verb-conjugations-header">
+        <div class="verb-conjugations-title">📊 Conjugations for "${data.verb}" (${data.meaning || ''})</div>
+      </div>
+      <div class="verb-conjugations-table-wrapper">
+        <table class="conjugation-table">
+          <thead>
+            <tr>
+              <th>Pronoun</th>
+              <th>Present (Präsens)</th>
+              <th>Simple Past (Präteritum)</th>
+              <th>Perfect (Perfekt)</th>
+              <th>Future (Futur I)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="conjugation-pronoun">ich</td>
+              <td class="conjugation-verb-form">${escHtml(c.present.ich)}</td>
+              <td class="conjugation-verb-form">${escHtml(c.past_simple.ich)}</td>
+              <td class="conjugation-verb-form">${escHtml(c.past_perfect.ich)}</td>
+              <td class="conjugation-verb-form">${escHtml(c.future.ich)}</td>
+            </tr>
+            <tr>
+              <td class="conjugation-pronoun">du</td>
+              <td class="conjugation-verb-form">${escHtml(c.present.du)}</td>
+              <td class="conjugation-verb-form">${escHtml(c.past_simple.du)}</td>
+              <td class="conjugation-verb-form">${escHtml(c.past_perfect.du)}</td>
+              <td class="conjugation-verb-form">${escHtml(c.future.du)}</td>
+            </tr>
+            <tr>
+              <td class="conjugation-pronoun">er/sie/es</td>
+              <td class="conjugation-verb-form">${escHtml(c.present.er_sie_es)}</td>
+              <td class="conjugation-verb-form">${escHtml(c.past_simple.er_sie_es)}</td>
+              <td class="conjugation-verb-form">${escHtml(c.past_perfect.er_sie_es)}</td>
+              <td class="conjugation-verb-form">${escHtml(c.future.er_sie_es)}</td>
+            </tr>
+            <tr>
+              <td class="conjugation-pronoun">wir</td>
+              <td class="conjugation-verb-form">${escHtml(c.present.wir)}</td>
+              <td class="conjugation-verb-form">${escHtml(c.past_simple.wir)}</td>
+              <td class="conjugation-verb-form">${escHtml(c.past_perfect.wir)}</td>
+              <td class="conjugation-verb-form">${escHtml(c.future.wir)}</td>
+            </tr>
+            <tr>
+              <td class="conjugation-pronoun">ihr</td>
+              <td class="conjugation-verb-form">${escHtml(c.present.ihr)}</td>
+              <td class="conjugation-verb-form">${escHtml(c.past_simple.ihr)}</td>
+              <td class="conjugation-verb-form">${escHtml(c.past_perfect.ihr)}</td>
+              <td class="conjugation-verb-form">${escHtml(c.future.ihr)}</td>
+            </tr>
+            <tr>
+              <td class="conjugation-pronoun">sie/Sie</td>
+              <td class="conjugation-verb-form">${escHtml(c.present.sie_Sie)}</td>
+              <td class="conjugation-verb-form">${escHtml(c.past_simple.sie_Sie)}</td>
+              <td class="conjugation-verb-form">${escHtml(c.past_perfect.sie_Sie)}</td>
+              <td class="conjugation-verb-form">${escHtml(c.future.sie_Sie)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
   function nextQuestion() {
     state.exerciseIndex++;
     if (state.exerciseMode === 'mc') renderMCQuestion();
@@ -1930,6 +2117,7 @@ const App = (() => {
     updateGeminiStatusUI,
     applyBetterPhrasing,
     analyzeGermanSentence,
+    toggleVerbConjugations,
   };
 
 })();
