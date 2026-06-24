@@ -197,7 +197,12 @@ const App = (() => {
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.querySelectorAll('[data-tab]').forEach(b => b.classList.remove('active'));
     const view = document.getElementById(`view-${viewId}`);
-    if (view) view.classList.add('active');
+    if (view) {
+      view.classList.add('active');
+      if (window.Motion) {
+        window.Motion.animate(view, { opacity: [0, 1], y: [12, 0] }, { duration: 0.35, easing: [0.16, 1, 0.3, 1] });
+      }
+    }
     document.querySelectorAll(`[data-tab="${viewId}"]`).forEach(b => b.classList.add('active'));
     if (viewId === 'bank') renderWordBank();
     if (viewId === 'insights') Insights.render(WordBank.getStats());
@@ -997,16 +1002,31 @@ const App = (() => {
           </div>
         </div>`;
     }).join('');
+
+    if (window.Motion) {
+      const { animate, stagger } = window.Motion;
+      animate(
+        container.querySelectorAll('.word-card'),
+        { opacity: [0, 1], y: [15, 0] },
+        { delay: stagger(0.02), duration: 0.35, easing: [0.16, 1, 0.3, 1] }
+      );
+    }
   }
 
   function deleteWord(id) {
     WordBank.deleteWord(id);
     const el = document.getElementById(`word-${id}`);
     if (el) {
-      el.style.transition = 'all 0.3s ease';
-      el.style.transform = 'scale(0.9)';
-      el.style.opacity = '0';
-      setTimeout(() => renderWordBank(), 300);
+      if (window.Motion) {
+        window.Motion.animate(el, { scale: 0.85, opacity: 0, y: 10 }, { duration: 0.25 }).then(() => {
+          renderWordBank();
+        });
+      } else {
+        el.style.transition = 'all 0.3s ease';
+        el.style.transform = 'scale(0.9)';
+        el.style.opacity = '0';
+        setTimeout(() => renderWordBank(), 300);
+      }
     }
     updateNavStats();
     showToast('Word deleted', 'error');
@@ -1462,7 +1482,16 @@ const App = (() => {
     toast.className = `toast toast-${type}`;
     toast.innerHTML = `<span>${icons[type]}</span><span>${message}</span>`;
     container.appendChild(toast);
-    setTimeout(() => toast.remove(), 3100);
+
+    if (window.Motion) {
+      const { animate } = window.Motion;
+      animate(toast, { opacity: [0, 1], scale: [0.85, 1], y: [15, 0] }, { duration: 0.3, easing: [0.175, 0.885, 0.32, 1.275] });
+      setTimeout(() => {
+        animate(toast, { opacity: 0, y: -15, scale: 0.9 }, { duration: 0.25 }).then(() => toast.remove());
+      }, 2800);
+    } else {
+      setTimeout(() => toast.remove(), 3100);
+    }
   }
 
   // ── Utils ─────────────────────────────────────────────────────

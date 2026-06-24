@@ -92,6 +92,15 @@ const Insights = (() => {
           ${isUnlocked ? `<div class="badge-date">Earned ${dateStr}</div>` : `<div class="badge-date locked-label">Locked</div>`}
         </div>`;
     }).join('');
+
+    if (window.Motion) {
+      const { animate, stagger } = window.Motion;
+      animate(
+        container.querySelectorAll('.badge-item'),
+        { opacity: [0, 1], scale: [0.85, 1], y: [15, 0] },
+        { delay: stagger(0.02), duration: 0.4, easing: [0.16, 1, 0.3, 1] }
+      );
+    }
   }
 
   function renderStatCards(stats) {
@@ -161,13 +170,22 @@ const Insights = (() => {
         </div>`;
     }).join('');
 
-    // Animate bars after render
-    requestAnimationFrame(() => {
-      container.querySelectorAll('.cat-bar-fill').forEach(bar => {
-        const target = bar.dataset.target;
-        setTimeout(() => { bar.style.width = target + '%'; }, 100);
+    if (window.Motion) {
+      const { animate, stagger } = window.Motion;
+      animate(
+        container.querySelectorAll('.cat-bar-fill'),
+        { width: [0, (el) => el.dataset.target + '%'] },
+        { delay: stagger(0.04), duration: 0.6, easing: [0.16, 1, 0.3, 1] }
+      );
+    } else {
+      // Animate bars after render
+      requestAnimationFrame(() => {
+        container.querySelectorAll('.cat-bar-fill').forEach(bar => {
+          const target = bar.dataset.target;
+          setTimeout(() => { bar.style.width = target + '%'; }, 100);
+        });
       });
-    });
+    }
   }
 
   function renderTopWords(topWords) {
@@ -196,6 +214,15 @@ const Insights = (() => {
         </div>
       </div>
     `).join('');
+
+    if (window.Motion) {
+      const { animate, stagger } = window.Motion;
+      animate(
+        container.querySelectorAll('.top-word-item'),
+        { opacity: [0, 1], x: [-15, 0] },
+        { delay: stagger(0.03), duration: 0.35, easing: [0.16, 1, 0.3, 1] }
+      );
+    }
   }
 
   function renderStreakCalendar(datesUsed) {
