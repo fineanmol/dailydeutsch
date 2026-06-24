@@ -15,6 +15,9 @@
      #76daff  Sky blue → light highlight
   */
 
+  /* Primary Accent Mapping */
+  --primary: var(--accent-blue);
+
   /* Light surfaces */
   --bg-primary: #f2f5ff;
   --bg-secondary: #ffffff;
@@ -2176,7 +2179,9 @@ p { color: var(--text-secondary); }
   font-weight: 600;
   color: var(--text-muted);
 }
-.settings-api-status.active { color: #2da85a; }
+.settings-api-status.active { color: var(--accent-green); }
+.settings-api-status.warning { color: var(--accent-gold); }
+.settings-api-status.danger { color: var(--accent-red); }
 .settings-api-desc {
   font-size: 0.78rem;
   color: var(--text-muted);

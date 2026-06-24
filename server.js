@@ -63,7 +63,7 @@ app.get('/api/firebase-config', (_req, res) => {
 
 // ── Translation proxy ─────────────────────────────────────────
 app.post('/api/translate', async (req, res) => {
-  const { text, provider: clientProvider, from = 'en', to = 'de', deeplKey: clientDeeplKey } = req.body;
+  const { text, provider: clientProvider, from = 'en', to = 'de', deeplKey: clientDeeplKey, googleKey: clientGoogleKey } = req.body;
   if (!text || !text.trim()) return res.status(400).json({ error: 'No text provided' });
 
   const fromLang = from.toLowerCase();
@@ -114,10 +114,11 @@ app.post('/api/translate', async (req, res) => {
   }
 
   // ── Try Google Translate ──────────────────────────────────────
-  if (!result && (pref === 'auto' || pref === 'google') && googleKey) {
+  const activeGoogleKey = (clientGoogleKey && clientGoogleKey.trim()) || googleKey;
+  if (!result && (pref === 'auto' || pref === 'google') && activeGoogleKey) {
     try {
       const r = await fetch(
-        `https://translation.googleapis.com/language/translate/v2?key=${googleKey.trim()}`,
+        `https://translation.googleapis.com/language/translate/v2?key=${activeGoogleKey.trim()}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -206,7 +207,7 @@ app.post('/api/gemini', async (req, res) => {
   }
 
   try {
-    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${serverGeminiKey.trim()}`;
+    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-3.5-flash:generateContent?key=${serverGeminiKey.trim()}`;
     const body = {
       contents: [{ parts: [{ text: prompt }] }]
     };

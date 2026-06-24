@@ -83,7 +83,7 @@ const Translator = (() => {
     const r = await fetch('/api/translate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, provider: settings.provider, from, to, deeplKey: settings.deeplKey }),
+      body: JSON.stringify({ text, provider: settings.provider, from, to, deeplKey: settings.deeplKey, googleKey: settings.googleKey }),
     });
     if (!r.ok) throw new Error(`Server ${r.status}`);
     const data = await r.json();

@@ -75,18 +75,126 @@ const App = (() => {
 
   function updateGeminiStatusUI() {
     const key = getGeminiKey();
-    const badge = document.getElementById('gemini-status-badge');
     const input = document.getElementById('setting-gemini-key');
     if (input) input.value = key;
-    if (badge) {
-      if (key) {
-        badge.textContent = 'Active 🤖';
-        badge.style.background = '#47cf73';
-        badge.style.color = '#fff';
+    updateSettingsStatusBadges(Translator.serverStatus);
+  }
+
+  function updateSettingsStatusBadges(serverStatus) {
+    const allowedCodes = ['fineanmol'];
+    
+    // Get locally saved keys
+    const s = Translator.loadSettings();
+    const deeplKey = s.deeplKey || '';
+    const googleKey = s.googleKey || '';
+    const geminiKey = getGeminiKey() || '';
+
+    const deeplEl = document.getElementById('deepl-status');
+    const googleEl = document.getElementById('google-status');
+    const apiBadge = document.getElementById('translation-api-badge');
+    const geminiBadge = document.getElementById('gemini-status-badge');
+    const fbBadge = document.getElementById('firebase-badge');
+
+    // 1. Update DeepL badge status
+    if (deeplEl) {
+      deeplEl.className = 'settings-api-status'; // reset
+      if (deeplKey) {
+        const trimmed = deeplKey.toLowerCase().trim();
+        if (allowedCodes.includes(trimmed)) {
+          if (serverStatus && serverStatus.hasDeeplKey) {
+            deeplEl.textContent = 'Code Applied';
+            deeplEl.classList.add('active');
+          } else {
+            deeplEl.textContent = 'Code Applied (No server key)';
+            deeplEl.classList.add('warning');
+          }
+        } else if (deeplKey.includes('-') || deeplKey.length > 20) {
+          deeplEl.textContent = 'Key Active';
+          deeplEl.classList.add('active');
+        } else {
+          deeplEl.textContent = 'Invalid Key/Code';
+          deeplEl.classList.add('danger');
+        }
       } else {
-        badge.textContent = 'Disabled';
-        badge.style.background = 'rgba(0,0,0,0.06)';
-        badge.style.color = 'var(--text-muted)';
+        // empty input
+        if (serverStatus && serverStatus.hasDeeplKey) {
+          deeplEl.textContent = 'Active (Server)';
+          deeplEl.classList.add('active');
+        } else {
+          deeplEl.textContent = '—';
+        }
+      }
+    }
+
+    // 2. Update Google Translate badge status
+    if (googleEl) {
+      googleEl.className = 'settings-api-status'; // reset
+      if (googleKey) {
+        if (googleKey.startsWith('AIzaSy') || googleKey.length > 10) {
+          googleEl.textContent = 'Key Active';
+          googleEl.classList.add('active');
+        } else {
+          googleEl.textContent = 'Invalid Key';
+          googleEl.classList.add('danger');
+        }
+      } else {
+        // empty input
+        if (serverStatus && serverStatus.hasGoogleKey) {
+          googleEl.textContent = 'Active (Server)';
+          googleEl.classList.add('active');
+        } else {
+          googleEl.textContent = '—';
+        }
+      }
+    }
+
+    // 3. Update Gemini badge status
+    if (geminiBadge) {
+      geminiBadge.className = 'settings-api-badge'; // reset
+      if (geminiKey) {
+        const trimmed = geminiKey.toLowerCase().trim();
+        if (allowedCodes.includes(trimmed)) {
+          geminiBadge.textContent = 'Code Applied';
+          geminiBadge.style.background = 'var(--accent-green-soft)';
+          geminiBadge.style.color = 'var(--accent-green)';
+          geminiBadge.style.borderColor = 'rgba(71,207,115,0.3)';
+        } else if (geminiKey.startsWith('AIzaSy') || geminiKey.length > 10) {
+          geminiBadge.textContent = 'Key Active';
+          geminiBadge.style.background = 'var(--accent-green-soft)';
+          geminiBadge.style.color = 'var(--accent-green)';
+          geminiBadge.style.borderColor = 'rgba(71,207,115,0.3)';
+        } else {
+          geminiBadge.textContent = 'Invalid Key';
+          geminiBadge.style.background = 'var(--accent-red-soft)';
+          geminiBadge.style.color = 'var(--accent-red)';
+          geminiBadge.style.borderColor = 'rgba(255,60,65,0.3)';
+        }
+      } else {
+        geminiBadge.textContent = 'Disabled';
+        geminiBadge.style.background = 'rgba(0,0,0,0.06)';
+        geminiBadge.style.color = 'var(--text-muted)';
+        geminiBadge.style.borderColor = 'transparent';
+      }
+    }
+
+    // 4. Update translation API header badge
+    if (apiBadge) {
+      apiBadge.textContent = Translator.getActiveProviderName() || 'MyMemory';
+    }
+
+    // 5. Update Firebase status badge
+    if (fbBadge) {
+      fbBadge.className = 'settings-api-badge'; // reset
+      if (serverStatus && serverStatus.hasFirebase) {
+        fbBadge.textContent = 'Connected';
+        fbBadge.style.background = 'var(--accent-green-soft)';
+        fbBadge.style.color = 'var(--accent-green)';
+        fbBadge.style.borderColor = 'rgba(71,207,115,0.3)';
+      } else {
+        fbBadge.textContent = 'Not connected';
+        fbBadge.style.background = 'rgba(0,0,0,0.06)';
+        fbBadge.style.color = 'var(--text-muted)';
+        fbBadge.style.borderColor = 'transparent';
       }
     }
   }
@@ -150,7 +258,7 @@ const App = (() => {
     }
 
     // Direct browser-to-Google client-side call (supports CORS)
-    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${key}`;
+    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-3.5-flash:generateContent?key=${key}`;
     const body = {
       contents: [{ parts: [{ text: prompt }] }]
     };
@@ -332,6 +440,16 @@ const App = (() => {
     Translator.saveSettings(settings);
     closeSettings();
     updateProviderIndicator();
+
+    // Sync to backend page inputs immediately
+    const pgDeepl = document.getElementById('pg-deepl-key');
+    const pgGoogle = document.getElementById('pg-google-key');
+    const pgProvider = document.getElementById('settings-page-provider');
+    if (pgDeepl) pgDeepl.value = settings.deeplKey;
+    if (pgGoogle) pgGoogle.value = settings.googleKey;
+    if (pgProvider) pgProvider.value = settings.provider;
+    updateSettingsStatusBadges(Translator.serverStatus);
+
     showToast(`Settings saved — using ${Translator.getActiveProviderName()}`, 'success');
   }
 
@@ -340,7 +458,17 @@ const App = (() => {
     document.getElementById('setting-provider').value = 'auto';
     document.getElementById('setting-deepl-key').value = '';
     document.getElementById('setting-google-key').value = '';
+
+    // Sync to backend page inputs immediately
+    const pgDeepl = document.getElementById('pg-deepl-key');
+    const pgGoogle = document.getElementById('pg-google-key');
+    const pgProvider = document.getElementById('settings-page-provider');
+    if (pgDeepl) pgDeepl.value = '';
+    if (pgGoogle) pgGoogle.value = '';
+    if (pgProvider) pgProvider.value = 'auto';
     updateProviderIndicator();
+    updateSettingsStatusBadges(Translator.serverStatus);
+
     showToast('Reset to MyMemory (free)', 'info');
   }
 
@@ -1409,14 +1537,14 @@ const App = (() => {
     try {
       const r = await fetch('/api/health');
       if (r.ok) {
-        if (icon) icon.textContent = '✅';
+        if (icon) icon.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>';
         if (title) title.textContent = 'Server is running at http://localhost:3000';
         if (sub) sub.innerHTML = 'Translation API calls are proxied securely — your keys stay on the server';
         if (banner) banner.style.borderColor = 'rgba(71,207,115,0.35)';
         if (banner) banner.style.background = 'rgba(71,207,115,0.06)';
       }
     } catch {
-      if (icon) icon.textContent = '❌';
+      if (icon) icon.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
       if (title) title.textContent = 'Server not detected';
       if (sub) sub.innerHTML = 'Run <code>npm start</code> in the project folder, then open <code>http://localhost:3000</code>';
       if (banner) banner.style.borderColor = 'rgba(255,60,65,0.35)';
@@ -1433,17 +1561,13 @@ const App = (() => {
     if (pgGoogle) pgGoogle.value = s.googleKey || '';
 
     // Show server API status if available
-    const serverStatus = Translator.serverStatus;
-    if (serverStatus) {
-      const deeplEl = document.getElementById('deepl-status');
-      const googleEl = document.getElementById('google-status');
-      const apiBadge = document.getElementById('translation-api-badge');
-      if (deeplEl) { deeplEl.textContent = serverStatus.hasDeeplKey ? '✅ Active' : '—'; if (serverStatus.hasDeeplKey) deeplEl.classList.add('active'); }
-      if (googleEl) { googleEl.textContent = serverStatus.hasGoogleKey ? '✅ Active' : '—'; if (serverStatus.hasGoogleKey) googleEl.classList.add('active'); }
-      if (apiBadge) apiBadge.textContent = serverStatus.activeProvider || 'MyMemory';
-      const fbBadge = document.getElementById('firebase-badge');
-      if (fbBadge) fbBadge.textContent = serverStatus.hasFirebase ? '🔥 Connected' : 'Not connected';
+    let serverStatus = null;
+    try {
+      serverStatus = await Translator.fetchServerStatus();
+    } catch (e) {
+      console.warn("Could not fetch server configuration status", e);
     }
+    updateSettingsStatusBadges(serverStatus);
   }
 
   function savePageSettings() {
@@ -1461,6 +1585,7 @@ const App = (() => {
     if (drawerDeepl) drawerDeepl.value = settings.deeplKey;
     if (drawerGoogle) drawerGoogle.value = settings.googleKey;
     updateProviderIndicator();
+    updateSettingsStatusBadges(Translator.serverStatus);
     showToast(`Settings saved — using ${Translator.getActiveProviderName()}`, 'success');
   }
 

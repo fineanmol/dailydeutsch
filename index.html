@@ -7,7 +7,7 @@
   <title>Daily Deutsch — Build Your German Vocabulary</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="css/style.css?v=1.1.2" />
+  <link rel="stylesheet" href="css/style.css?v=1.1.3" />
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🇩🇪</text></svg>" />
 </head>
@@ -59,7 +59,12 @@
         </svg>
         Settings
       </div>
-      <button class="btn btn-ghost btn-icon" id="settings-close" aria-label="Close settings">✕</button>
+      <button class="btn btn-ghost btn-icon" id="settings-close" aria-label="Close settings">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
     </div>
 
     <div class="settings-drawer-body">
@@ -94,7 +99,12 @@
           <input class="input" id="setting-deepl-key" type="password"
             placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx:fx"
             autocomplete="off" spellcheck="false" />
-          <button class="btn btn-ghost btn-sm" onclick="togglePasswordVisibility('setting-deepl-key')">👁</button>
+          <button class="btn btn-ghost btn-sm" onclick="togglePasswordVisibility('setting-deepl-key')" aria-label="Toggle visibility" style="display:flex; align-items:center; justify-content:center;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+          </button>
         </div>
 
         <label class="settings-label" style="margin-top:1rem;">
@@ -105,7 +115,12 @@
           <input class="input" id="setting-google-key" type="password"
             placeholder="AIzaSy…"
             autocomplete="off" spellcheck="false" />
-          <button class="btn btn-ghost btn-sm" onclick="togglePasswordVisibility('setting-google-key')">👁</button>
+          <button class="btn btn-ghost btn-sm" onclick="togglePasswordVisibility('setting-google-key')" aria-label="Toggle visibility" style="display:flex; align-items:center; justify-content:center;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+          </button>
         </div>
 
         <button class="btn btn-primary w-full" style="margin-top:1.25rem;" id="settings-save">
@@ -116,8 +131,8 @@
         </button>
       </div>
 
-      <!-- Firebase -->
-      <div class="settings-section">
+      <!-- Firebase (Dev Only) -->
+      <div class="settings-section dev-only">
         <div class="settings-section-title">Firebase</div>
         <div class="settings-section-desc">
           Connect Firebase to sync your word bank across devices.
@@ -125,7 +140,11 @@
           or enter the values below for browser-only storage.
         </div>
         <div class="firebase-status-row" id="firebase-status-row">
-          <span id="firebase-status-icon">✅</span>
+          <span id="firebase-status-icon" style="display:inline-flex; align-items:center;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color:var(--accent-green);">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </span>
           <span id="firebase-status-text">Firebase connected — syncing to cloud</span>
         </div>
         <button class="btn btn-ghost btn-sm w-full" style="margin-top:0.75rem;"
@@ -140,7 +159,10 @@
         <div class="settings-section-desc" id="settings-account-desc">Loading…</div>
         <button class="btn btn-ghost btn-sm w-full" id="drawer-upgrade-btn"
           onclick="App.upgradeToGoogle()" style="display:none;margin-bottom:0.5rem;">
-          🔗 Link Google Account
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px; vertical-align:middle;">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+          </svg>Link Google Account
         </button>
         <button class="btn btn-danger w-full" onclick="App.signOut()">
           Sign Out
@@ -647,7 +669,12 @@
 
         <!-- Server Status Banner -->
         <div class="backend-status-banner dev-only" id="backend-banner">
-          <div class="backend-status-icon" id="backend-status-icon">⏳</div>
+          <div class="backend-status-icon" id="backend-status-icon" style="display:inline-flex; align-items:center;">
+            <svg class="spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M12 2a10 10 0 0 1 10 10"></path>
+            </svg>
+          </div>
           <div>
             <div class="backend-status-title" id="backend-status-title">Checking server…</div>
             <div class="backend-status-sub" id="backend-status-sub">Make sure you ran <code>npm start</code></div>
@@ -659,7 +686,12 @@
           <!-- ── Account Profile (Production Only) ── -->
           <div class="settings-page-card prod-only">
             <div class="settings-page-card-header">
-              <span class="settings-page-card-icon">👤</span>
+              <span class="settings-page-card-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+              </span>
               <div>
                 <div class="settings-page-card-title">Account &amp; Sync</div>
                 <div class="settings-page-card-sub">Your active cloud connection</div>
@@ -668,7 +700,7 @@
             </div>
             <div class="settings-form">
               <div style="display:flex; align-items:center; gap:16px; margin-bottom:1.5rem;">
-                <div class="nav-avatar" id="settings-page-avatar" style="width:54px; height:54px; font-size:1.5rem; border:2px solid var(--primary); display:flex; align-items:center; justify-content:center;">
+                <div class="nav-avatar" id="settings-page-avatar" style="width:54px; height:54px; font-size:1.5rem; border:2px solid var(--accent-blue); display:flex; align-items:center; justify-content:center;">
                   <span id="settings-page-avatar-initial">?</span>
                   <img id="settings-page-avatar-img" src="" alt="" style="display:none; width:100%; height:100%; border-radius:50%;" />
                 </div>
@@ -682,7 +714,9 @@
               </p>
               <div style="display:flex; gap:10px; flex-wrap:wrap;">
                 <button class="btn btn-primary" id="settings-page-upgrade-btn" onclick="App.upgradeToGoogle()">
-                  ⭐ Upgrade to Google Account
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px; vertical-align:middle;">
+                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/>
+                  </svg>Upgrade to Google Account
                 </button>
                 <button class="btn btn-secondary" onclick="App.signOut()">
                   Sign Out
@@ -694,7 +728,13 @@
           <!-- ── Gemini AI Settings (Shared) ── -->
           <div class="settings-page-card">
             <div class="settings-page-card-header">
-              <span class="settings-page-card-icon">🤖</span>
+              <span class="settings-page-card-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="11" width="18" height="10" rx="2"></rect>
+                  <circle cx="12" cy="5" r="2"></circle>
+                  <path d="M12 7v4M8 8h8M8 15h.01M16 15h.01"></path>
+                </svg>
+              </span>
               <div>
                 <div class="settings-page-card-title">Gemini AI Features</div>
                 <div class="settings-page-card-sub">Enable grammar explanations, plural endings, and custom stories</div>
@@ -724,7 +764,13 @@
           <!-- ── Translation API ── -->
           <div class="settings-page-card">
             <div class="settings-page-card-header">
-              <span class="settings-page-card-icon">🔤</span>
+              <span class="settings-page-card-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="2" y1="12" x2="22" y2="12"></line>
+                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                </svg>
+              </span>
               <div>
                 <div class="settings-page-card-title">Translation API</div>
                 <div class="settings-page-card-sub">Keys stored securely on backend or locally</div>
@@ -746,7 +792,11 @@
               <div class="settings-api-row">
                 <div class="settings-api-item">
                   <div class="settings-api-name">
-                    <span style="font-size:1.1rem;">🔷</span> DeepL
+                    <span class="settings-inline-icon-container" style="display:inline-flex; align-items:center; color:var(--accent-blue);">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;">
+                        <path d="m7.5 8 5-5 5 5-5 5-5-5zM7.5 16l5-5 5 5-5 5-5-5z"/>
+                      </svg>
+                    </span>DeepL
                     <span class="settings-api-status" id="deepl-status">—</span>
                   </div>
                   <div class="settings-api-desc">
@@ -755,7 +805,12 @@
                   </div>
                   <div class="settings-input-wrap" style="margin-top:0.5rem">
                     <input class="input" id="pg-deepl-key" type="password" placeholder="xxxxxxxx:fx (stored locally only)" autocomplete="off" />
-                    <button class="btn btn-ghost btn-sm" onclick="togglePasswordVisibility('pg-deepl-key')">👁</button>
+                    <button class="btn btn-ghost btn-sm" onclick="togglePasswordVisibility('pg-deepl-key')" aria-label="Toggle visibility" style="display:flex; align-items:center; justify-content:center;">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                      </svg>
+                    </button>
                   </div>
                   <a href="https://www.deepl.com/pro-api" target="_blank" class="settings-help-link" style="margin-top:0.4rem;display:inline-block">
                     Get a free DeepL key →
@@ -764,16 +819,26 @@
 
                 <div class="settings-api-item">
                   <div class="settings-api-name">
-                    <span style="font-size:1.1rem;">🔍</span> Google Translate
+                    <span class="settings-inline-icon-container" style="display:inline-flex; align-items:center; color:var(--accent-blue);">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                      </svg>
+                    </span>Google Translate
                     <span class="settings-api-status" id="google-status">—</span>
                   </div>
                   <div class="settings-api-desc">
                     Pay-as-you-go; $0 first 500k chars.<br>
-                    Add <code>GOOGLE_KEY=your_key</code> to server
+                    Add <code>GOOGLE_KEY=your_key</code> to server or type key here
                   </div>
                   <div class="settings-input-wrap" style="margin-top:0.5rem">
                     <input class="input" id="pg-google-key" type="password" placeholder="AIzaSy… (stored locally only)" autocomplete="off" />
-                    <button class="btn btn-ghost btn-sm" onclick="togglePasswordVisibility('pg-google-key')">👁</button>
+                    <button class="btn btn-ghost btn-sm" onclick="togglePasswordVisibility('pg-google-key')" aria-label="Toggle visibility" style="display:flex; align-items:center; justify-content:center;">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                      </svg>
+                    </button>
                   </div>
                   <a href="https://console.cloud.google.com/apis/library/translate.googleapis.com" target="_blank" class="settings-help-link" style="margin-top:0.4rem;display:inline-block">
                     Enable Google Translate API →
@@ -788,9 +853,13 @@
           </div>
 
           <!-- ── Firebase ── -->
-          <div class="settings-page-card">
+          <div class="settings-page-card dev-only">
             <div class="settings-page-card-header">
-              <span class="settings-page-card-icon">🔥</span>
+              <span class="settings-page-card-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
+                </svg>
+              </span>
               <div>
                 <div class="settings-page-card-title">Firebase</div>
                 <div class="settings-page-card-sub">Sync your word bank across devices</div>
@@ -805,7 +874,12 @@
               </p>
 
               <div class="firebase-env-block">
-                <div class="firebase-env-title">📋 Copy this to your <code>.env</code> file:</div>
+                <div class="firebase-env-title">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px; vertical-align:middle;">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>Copy this to your <code>.env</code> file:
+                </div>
                 <pre class="firebase-env-code" id="firebase-env-preview">FIREBASE_API_KEY=
 FIREBASE_AUTH_DOMAIN=
 FIREBASE_PROJECT_ID=
@@ -840,7 +914,9 @@ FIREBASE_APP_ID=</pre>
               </div>
 
               <a href="https://console.firebase.google.com" target="_blank" class="btn btn-ghost" style="margin-top:0.75rem;display:inline-flex;align-items:center;gap:6px;">
-                🔥 Open Firebase Console →
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;">
+                  <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
+                </svg>Open Firebase Console →
               </a>
             </div>
           </div>
@@ -848,7 +924,13 @@ FIREBASE_APP_ID=</pre>
           <!-- ── Data Management (Shared) ── -->
           <div class="settings-page-card dev-only">
             <div class="settings-page-card-header">
-              <span class="settings-page-card-icon">💾</span>
+              <span class="settings-page-card-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                  <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+                  <path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"></path>
+                </svg>
+              </span>
               <div>
                 <div class="settings-page-card-title">Data Management</div>
                 <div class="settings-page-card-sub">Export, import, or clear your word bank</div>
@@ -857,17 +939,26 @@ FIREBASE_APP_ID=</pre>
             <div class="settings-form">
               <div class="data-actions-grid">
                 <button class="btn btn-secondary" onclick="App.exportWordBank()">
-                  ⬇ Export JSON
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px; vertical-align:middle;">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                  </svg>Export JSON
                 </button>
                 <button class="btn btn-secondary" onclick="App.exportCSV()">
-                  📊 Export CSV
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px; vertical-align:middle;">
+                    <path d="M3 3v18h18M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/>
+                  </svg>Export CSV
                 </button>
-                <label class="btn btn-secondary" style="cursor:pointer;">
-                  ⬆ Import JSON
+                <label class="btn btn-secondary" style="cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:6px;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                  </svg>Import JSON
                   <input type="file" accept=".json" style="display:none" onchange="App.importWordBank(event)" />
                 </label>
                 <button class="btn btn-danger" onclick="App.clearAllData()">
-                  🗑 Clear All Data
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px; vertical-align:middle;">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  </svg>Clear All Data
                 </button>
               </div>
               <div style="margin-top:1rem;padding:1rem;background:rgba(255,60,65,0.07);border:1px solid rgba(255,60,65,0.2);border-radius:var(--radius-md);font-size:0.82rem;color:var(--text-secondary);">
@@ -879,7 +970,12 @@ FIREBASE_APP_ID=</pre>
           <!-- ── How to run the server (Development Only) ── -->
           <div class="settings-page-card dev-only">
             <div class="settings-page-card-header">
-              <span class="settings-page-card-icon">🚀</span>
+              <span class="settings-page-card-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="4 17 10 11 4 5"></polyline>
+                  <line x1="12" y1="19" x2="20" y2="19"></line>
+                </svg>
+              </span>
               <div>
                 <div class="settings-page-card-title">Running the Backend</div>
                 <div class="settings-page-card-sub">Needed for API key security and full features</div>
@@ -995,16 +1091,16 @@ FIREBASE_APP_ID=</pre>
 </script>
 
 <!-- Scripts (load order: Firebase globals must come first) -->
-<script src="js/motion.js?v=1.1.2"></script>
-<script src="js/auth.js?v=1.1.2"></script>
-<script src="js/db.js?v=1.1.2"></script>
-<script src="js/categories.js?v=1.1.2"></script>
-<script src="js/wordbank.js?v=1.1.2"></script>
-<script src="js/cefr.js?v=1.1.2"></script>
-<script src="js/translator.js?v=1.1.2"></script>
-<script src="js/exercises.js?v=1.1.2"></script>
-<script src="js/insights.js?v=1.1.2"></script>
-<script src="js/app.js?v=1.1.2"></script>
+<script src="js/motion.js?v=1.1.3"></script>
+<script src="js/auth.js?v=1.1.3"></script>
+<script src="js/db.js?v=1.1.3"></script>
+<script src="js/categories.js?v=1.1.3"></script>
+<script src="js/wordbank.js?v=1.1.3"></script>
+<script src="js/cefr.js?v=1.1.3"></script>
+<script src="js/translator.js?v=1.1.3"></script>
+<script src="js/exercises.js?v=1.1.3"></script>
+<script src="js/insights.js?v=1.1.3"></script>
+<script src="js/app.js?v=1.1.3"></script>
 <script>
   function togglePasswordVisibility(inputId) {
     const el = document.getElementById(inputId);
