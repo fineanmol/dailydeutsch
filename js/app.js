@@ -103,7 +103,8 @@ const App = (() => {
     const key = getGeminiKey();
     if (!key) throw new Error('Gemini API Key is missing. Add it in Settings.');
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${key}`;
+    // Use stable gemini-1.5-flash model name
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
     const body = {
       contents: [{ parts: [{ text: prompt }] }]
     };
@@ -113,31 +114,47 @@ const App = (() => {
       };
     }
 
-    const r = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
+    let lastError = null;
+    let delay = 1000;
 
-    if (!r.ok) {
-      const errData = await r.json().catch(() => ({}));
-      const msg = errData?.error?.message || `HTTP ${r.status}`;
-      throw new Error(`Gemini API Error: ${msg}`);
-    }
-
-    const data = await r.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) throw new Error('Empty response from Gemini');
-
-    if (responseJson) {
+    for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        return JSON.parse(cleanJsonString(text));
-      } catch (e) {
-        console.error('Failed to parse Gemini response as JSON:', text);
-        throw e;
+        const r = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+
+        if (!r.ok) {
+          const errData = await r.json().catch(() => ({}));
+          const msg = errData?.error?.message || `HTTP ${r.status}`;
+          throw new Error(`Gemini API Error: ${msg}`);
+        }
+
+        const data = await r.json();
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!text) throw new Error('Empty response from Gemini');
+
+        if (responseJson) {
+          try {
+            return JSON.parse(cleanJsonString(text));
+          } catch (e) {
+            console.error('Failed to parse Gemini response as JSON:', text);
+            throw e;
+          }
+        }
+        return text;
+      } catch (err) {
+        lastError = err;
+        console.warn(`Gemini call attempt ${attempt + 1} failed: ${err.message}`);
+        // If it is a quota/limit or server error, wait and retry
+        if (attempt < 2) {
+          await new Promise(resolve => setTimeout(resolve, delay));
+          delay *= 2;
+        }
       }
     }
-    return text;
+    throw lastError;
   }
 
   // ── State ────────────────────────────────────────────────────
@@ -2180,16 +2197,20 @@ const App = (() => {
     }
 
     try {
-      const prompt = `You are a German grammar helper. Conjugate the German verb "${germanVerb}" in the following tenses:
-      1. Present (Präsens)
-      2. Simple Past (Präteritum)
-      3. Present Perfect (Perfekt)
-      4. Future (Futur I)
+      const prompt = `You are a German grammar helper.
+      Your tasks are:
+      1. Identify the root infinitive (dictionary base form) of the German verb input: "${germanVerb}" (for example, if the input is "ging" or "werde gehen" or "gesehen", the root infinitive is "gehen").
+      2. Translate this root infinitive verb to English.
+      3. Conjugate this resolved root infinitive verb in the following tenses:
+         - Present (Präsens)
+         - Simple Past (Präteritum)
+         - Present Perfect (Perfekt)
+         - Future (Futur I)
       
       For each tense, provide the conjugated form for the pronouns: ich, du, er/sie/es, wir, ihr, sie/Sie.
       Return a JSON object with this EXACT structure:
       {
-        "verb": "${germanVerb}",
+        "verb": "resolved root infinitive (e.g. 'gehen')",
         "meaning": "English meaning",
         "conjugations": {
           "present": { "ich": "...", "du": "...", "er_sie_es": "...", "wir": "...", "ihr": "...", "sie_Sie": "..." },
