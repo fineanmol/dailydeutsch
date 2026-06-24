@@ -175,6 +175,7 @@ const App = (() => {
 
     setupNavigation();
     setupTranslator();
+    setupConjugator();
     setupWordBank();
     setupExercises();
     setupSettings();
@@ -2087,6 +2088,178 @@ const App = (() => {
     `;
   }
 
+  function setupConjugator() {
+    const input = document.getElementById('conjugator-search-input');
+    const btn = document.getElementById('conjugator-search-btn');
+
+    input?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        runConjugationSearch();
+      }
+    });
+
+    btn?.addEventListener('click', () => {
+      runConjugationSearch();
+    });
+  }
+
+  async function runConjugationSearch() {
+    const input = document.getElementById('conjugator-search-input');
+    const verb = input?.value?.trim();
+    if (!verb) return;
+    
+    await fetchViewConjugations(verb);
+  }
+
+  async function conjugateSuggestedVerb(verb) {
+    const input = document.getElementById('conjugator-search-input');
+    if (input) {
+      input.value = verb;
+      await fetchViewConjugations(verb);
+    }
+  }
+
+  async function fetchViewConjugations(germanVerb) {
+    const wrapper = document.getElementById('conjugator-result-wrapper');
+    if (!wrapper) return;
+
+    wrapper.innerHTML = `
+      <div class="card" style="display:flex; justify-content:center; align-items:center; padding:40px; margin-top: var(--space-md);">
+        <div class="spinner" style="width:24px; height:24px; border-width:3px; margin-bottom:10px;"></div>
+        <span style="color:var(--text-muted); font-size:0.9rem;">Generating conjugation table for "${germanVerb}"…</span>
+      </div>
+    `;
+    wrapper.classList.remove('hidden');
+
+    const geminiKey = getGeminiKey();
+    if (!geminiKey) {
+      wrapper.innerHTML = `
+        <div class="card" style="margin-top: var(--space-md);">
+          <div class="verb-conjugations-header">
+            <div class="verb-conjugations-title" style="color: var(--accent-green); margin-bottom: 0;">📊 Verb Conjugations</div>
+          </div>
+          <div style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.5; margin-top: 10px;">
+            <p style="margin-bottom: 12px;">Conjugation tables require Google's free Gemini API. Enter your key in Settings to unlock this feature.</p>
+            <button class="btn btn-secondary btn-sm" onclick="App.navigateTo('settings')">
+              🔑 Configure Gemini API Key →
+            </button>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    try {
+      const prompt = `You are a German grammar helper. Conjugate the German verb "${germanVerb}" in the following tenses:
+      1. Present (Präsens)
+      2. Simple Past (Präteritum)
+      3. Present Perfect (Perfekt)
+      4. Future (Futur I)
+      
+      For each tense, provide the conjugated form for the pronouns: ich, du, er/sie/es, wir, ihr, sie/Sie.
+      Return a JSON object with this EXACT structure:
+      {
+        "verb": "${germanVerb}",
+        "meaning": "English meaning",
+        "conjugations": {
+          "present": { "ich": "...", "du": "...", "er_sie_es": "...", "wir": "...", "ihr": "...", "sie_Sie": "..." },
+          "past_simple": { "ich": "...", "du": "...", "er_sie_es": "...", "wir": "...", "ihr": "...", "sie_Sie": "..." },
+          "past_perfect": { "ich": "...", "du": "...", "er_sie_es": "...", "wir": "...", "ihr": "...", "sie_Sie": "..." },
+          "future": { "ich": "...", "du": "...", "er_sie_es": "...", "wir": "...", "ihr": "...", "sie_Sie": "..." }
+        }
+      }`;
+
+      const res = await callGemini(prompt, true);
+      if (!res || !res.conjugations) throw new Error('Invalid response from AI');
+
+      const c = res.conjugations;
+      wrapper.innerHTML = `
+        <div class="card" style="margin-top: var(--space-md);">
+          <div class="verb-conjugations-header">
+            <div class="verb-conjugations-title" style="font-size: 1.2rem; color: var(--accent-green); margin-bottom: 0;">
+              📊 Conjugations for "${res.verb}" (${res.meaning || ''})
+            </div>
+            <button class="btn btn-ghost btn-sm btn-icon" onclick="App.speakGerman(document.getElementById('conjugator-verb-title').textContent.trim())" title="Hear pronunciation" style="font-size: 1.2rem; border-radius: 50%; width:36px; height:36px;">
+              🔊
+            </button>
+            <span id="conjugator-verb-title" class="hidden">${res.verb}</span>
+          </div>
+          
+          <div class="verb-conjugations-table-wrapper" style="margin-top: var(--space-lg);">
+            <table class="conjugation-table">
+              <thead>
+                <tr>
+                  <th>Pronoun</th>
+                  <th>Present (Präsens)</th>
+                  <th>Simple Past (Präteritum)</th>
+                  <th>Perfect (Perfekt)</th>
+                  <th>Future (Futur I)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="conjugation-pronoun">ich</td>
+                  <td class="conjugation-verb-form">${escHtml(c.present.ich)}</td>
+                  <td class="conjugation-verb-form">${escHtml(c.past_simple.ich)}</td>
+                  <td class="conjugation-verb-form">${escHtml(c.past_perfect.ich)}</td>
+                  <td class="conjugation-verb-form">${escHtml(c.future.ich)}</td>
+                </tr>
+                <tr>
+                  <td class="conjugation-pronoun">du</td>
+                  <td class="conjugation-verb-form">${escHtml(c.present.du)}</td>
+                  <td class="conjugation-verb-form">${escHtml(c.past_simple.du)}</td>
+                  <td class="conjugation-verb-form">${escHtml(c.past_perfect.du)}</td>
+                  <td class="conjugation-verb-form">${escHtml(c.future.du)}</td>
+                </tr>
+                <tr>
+                  <td class="conjugation-pronoun">er/sie/es</td>
+                  <td class="conjugation-verb-form">${escHtml(c.present.er_sie_es)}</td>
+                  <td class="conjugation-verb-form">${escHtml(c.past_simple.er_sie_es)}</td>
+                  <td class="conjugation-verb-form">${escHtml(c.past_perfect.er_sie_es)}</td>
+                  <td class="conjugation-verb-form">${escHtml(c.future.er_sie_es)}</td>
+                </tr>
+                <tr>
+                  <td class="conjugation-pronoun">wir</td>
+                  <td class="conjugation-verb-form">${escHtml(c.present.wir)}</td>
+                  <td class="conjugation-verb-form">${escHtml(c.past_simple.wir)}</td>
+                  <td class="conjugation-verb-form">${escHtml(c.past_perfect.wir)}</td>
+                  <td class="conjugation-verb-form">${escHtml(c.future.wir)}</td>
+                </tr>
+                <tr>
+                  <td class="conjugation-pronoun">ihr</td>
+                  <td class="conjugation-verb-form">${escHtml(c.present.ihr)}</td>
+                  <td class="conjugation-verb-form">${escHtml(c.past_simple.ihr)}</td>
+                  <td class="conjugation-verb-form">${escHtml(c.past_perfect.ihr)}</td>
+                  <td class="conjugation-verb-form">${escHtml(c.future.ihr)}</td>
+                </tr>
+                <tr>
+                  <td class="conjugation-pronoun">sie/Sie</td>
+                  <td class="conjugation-verb-form">${escHtml(c.present.sie_Sie)}</td>
+                  <td class="conjugation-verb-form">${escHtml(c.past_simple.sie_Sie)}</td>
+                  <td class="conjugation-verb-form">${escHtml(c.past_perfect.sie_Sie)}</td>
+                  <td class="conjugation-verb-form">${escHtml(c.future.sie_Sie)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    } catch (e) {
+      console.warn('[Verb conjugation view failed]', e);
+      wrapper.innerHTML = `
+        <div class="card" style="margin-top: var(--space-md);">
+          <div class="verb-conjugations-header">
+            <div class="verb-conjugations-title" style="color: var(--accent-red); margin-bottom: 0;">📊 Verb Conjugations</div>
+          </div>
+          <div style="font-size: 0.9rem; color: var(--accent-red); margin-top: 10px;">
+            Failed to generate conjugations: ${e.message}
+          </div>
+        </div>
+      `;
+    }
+  }
+
   function nextQuestion() {
     state.exerciseIndex++;
     if (state.exerciseMode === 'mc') renderMCQuestion();
@@ -2118,6 +2291,7 @@ const App = (() => {
     applyBetterPhrasing,
     analyzeGermanSentence,
     toggleVerbConjugations,
+    conjugateSuggestedVerb,
   };
 
 })();

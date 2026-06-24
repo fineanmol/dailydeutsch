@@ -7,7 +7,7 @@
   <title>Daily Deutsch — Build Your German Vocabulary</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="css/style.css?v=1.0.6" />
+  <link rel="stylesheet" href="css/style.css?v=1.0.7" />
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🇩🇪</text></svg>" />
 </head>
@@ -168,6 +168,14 @@
             <path d="M8 12h8M12 8v8"/>
           </svg>
           Translate
+        </button>
+        <button class="nav-tab" data-tab="conjugator" id="tab-conjugator">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <line x1="3" y1="9" x2="21" y2="9"/>
+            <line x1="9" y1="21" x2="9" y2="9"/>
+          </svg>
+          Conjugator
         </button>
         <button class="nav-tab" data-tab="bank" id="tab-bank">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -378,6 +386,53 @@
         </div>
 
       </div><!-- /view-translate -->
+
+
+      <!-- ═══════════════════════════════════════════════ -->
+      <!-- VIEW: CONJUGATOR                                -->
+      <!-- ═══════════════════════════════════════════════ -->
+      <div class="view" id="view-conjugator">
+
+        <div class="section-header">
+          <div>
+            <h1 class="section-title">Verb Conjugator</h1>
+            <p class="section-subtitle">Type any German verb to instantly see all its conjugated forms across tenses</p>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom: var(--space-xl);">
+          <div style="display: flex; gap: var(--space-md); flex-wrap: wrap; align-items: center;">
+            <div class="search-wrap" style="flex: 1; min-width: 250px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); width: 16px; height: 16px;">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <input class="input" id="conjugator-search-input" type="text" placeholder="Enter German verb (e.g., gehen, haben, sprechen)..." style="padding-left: 38px;" />
+            </div>
+            <button class="btn btn-primary" id="conjugator-search-btn">
+              Conjugate
+            </button>
+          </div>
+
+          <div style="margin-top: var(--space-md);">
+            <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: var(--space-xs);">Common Verbs:</span>
+            <div class="filter-pills" id="conjugator-suggestions">
+              <button class="filter-pill" onclick="App.conjugateSuggestedVerb('sein')">sein</button>
+              <button class="filter-pill" onclick="App.conjugateSuggestedVerb('haben')">haben</button>
+              <button class="filter-pill" onclick="App.conjugateSuggestedVerb('werden')">werden</button>
+              <button class="filter-pill" onclick="App.conjugateSuggestedVerb('gehen')">gehen</button>
+              <button class="filter-pill" onclick="App.conjugateSuggestedVerb('machen')">machen</button>
+              <button class="filter-pill" onclick="App.conjugateSuggestedVerb('kommen')">kommen</button>
+              <button class="filter-pill" onclick="App.conjugateSuggestedVerb('sehen')">sehen</button>
+              <button class="filter-pill" onclick="App.conjugateSuggestedVerb('schreiben')">schreiben</button>
+              <button class="filter-pill" onclick="App.conjugateSuggestedVerb('sprechen')">sprechen</button>
+              <button class="filter-pill" onclick="App.conjugateSuggestedVerb('essen')">essen</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="conjugator-result-wrapper" class="hidden"></div>
+
+      </div><!-- /view-conjugator -->
 
 
       <!-- ═══════════════════════════════════════════════ -->
@@ -900,6 +955,14 @@ FIREBASE_APP_ID=</pre>
         </svg>
         Translate
       </button>
+      <button class="mobile-nav-btn" data-tab="conjugator">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+          <line x1="3" y1="9" x2="21" y2="9"/>
+          <line x1="9" y1="21" x2="9" y2="9"/>
+        </svg>
+        Conjugator
+      </button>
       <button class="mobile-nav-btn" data-tab="bank">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
@@ -952,15 +1015,15 @@ FIREBASE_APP_ID=</pre>
 </script>
 
 <!-- Scripts (load order: Firebase globals must come first) -->
-<script src="js/auth.js?v=1.0.6"></script>
-<script src="js/db.js?v=1.0.6"></script>
-<script src="js/categories.js?v=1.0.6"></script>
-<script src="js/wordbank.js?v=1.0.6"></script>
-<script src="js/cefr.js?v=1.0.6"></script>
-<script src="js/translator.js?v=1.0.6"></script>
-<script src="js/exercises.js?v=1.0.6"></script>
-<script src="js/insights.js?v=1.0.6"></script>
-<script src="js/app.js?v=1.0.6"></script>
+<script src="js/auth.js?v=1.0.7"></script>
+<script src="js/db.js?v=1.0.7"></script>
+<script src="js/categories.js?v=1.0.7"></script>
+<script src="js/wordbank.js?v=1.0.7"></script>
+<script src="js/cefr.js?v=1.0.7"></script>
+<script src="js/translator.js?v=1.0.7"></script>
+<script src="js/exercises.js?v=1.0.7"></script>
+<script src="js/insights.js?v=1.0.7"></script>
+<script src="js/app.js?v=1.0.7"></script>
 <script>
   function togglePasswordVisibility(inputId) {
     const el = document.getElementById(inputId);
