@@ -1,7 +1,13 @@
 /**
- * app.js — Main application controller
+ * app.js — Main application orchestrator
+ *
+ * Dependencies (must load before this file):
+ *   gemini.js  → GeminiClient   (AI calls, key storage)
+ *   ui.js      → UI             (toast, modal, escHtml, utils)
+ *   translator.js, wordbank.js, exercises.js, insights.js, db.js, auth.js
+ *
  * Features: Translation, Word Bank, Exercises, Insights, Settings,
- *           Synonyms, CEFR Badges, Level Variations
+ *           Synonyms, CEFR Badges, Level Variations, Verb Conjugations
  */
 
 const App = (() => {
@@ -17,6 +23,11 @@ const App = (() => {
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = lang;
+
+    // Apply speech rate preference
+    const rateStr = localStorage.getItem('dd_speech_rate') || '1.0';
+    utterance.rate = parseFloat(rateStr);
+
     const voices = window.speechSynthesis.getVoices();
     const prefix = lang.split('-')[0];
     const matchVoice = voices.find(voice => voice.lang.startsWith(prefix) || voice.lang === lang);
@@ -51,30 +62,30 @@ const App = (() => {
     return escHtml(text);
   }
 
-  // ── Gemini AI Helper (Client-Side Free Tier) ──────────────────
-  function getGeminiKey() {
-    return localStorage.getItem('mw_gemini_key') || '';
-  }
+  // ── Gemini AI — delegating to GeminiClient module ───────────
+  //    All Gemini logic lives in js/gemini.js (GeminiClient).
+  //    These wrappers keep the existing call sites in this file working.
 
-  function saveGeminiKey(key) {
-    localStorage.setItem('mw_gemini_key', key.trim());
-  }
+  const getGeminiKey    = () => GeminiClient.getKey();
+  const saveGeminiKey   = (k) => GeminiClient.saveKey(k);
+  const cleanJsonString = (s) => GeminiClient.cleanJsonString(s);
+  const callGemini      = (prompt, json) => GeminiClient.callGemini(prompt, json);
 
   function saveGeminiKeyFromUI() {
     const el = document.getElementById('setting-gemini-key');
     if (!el) return;
     const key = el.value.trim();
-    saveGeminiKey(key);
+    GeminiClient.saveKey(key);
     updateGeminiStatusUI();
     if (key) {
-      showToast('Gemini API Key saved! AI features enabled. 🤖', 'success');
+      showToast('Gemini key saved — AI features enabled.', 'success');
     } else {
-      showToast('Gemini API Key removed. AI features disabled.', 'info');
+      showToast('Gemini key removed. AI features disabled.', 'info');
     }
   }
 
   function updateGeminiStatusUI() {
-    const key = getGeminiKey();
+    const key = GeminiClient.getKey();
     const input = document.getElementById('setting-gemini-key');
     if (input) input.value = key;
     updateSettingsStatusBadges(Translator.serverStatus);
@@ -82,234 +93,90 @@ const App = (() => {
 
   function updateSettingsStatusBadges(serverStatus) {
     const allowedCodes = ['fineanmol'];
-    
+
     // Get locally saved keys
     const s = Translator.loadSettings();
     const deeplKey = s.deeplKey || '';
     const googleKey = s.googleKey || '';
     const geminiKey = getGeminiKey() || '';
 
-    const deeplEl = document.getElementById('deepl-status');
-    const googleEl = document.getElementById('google-status');
-    const apiBadge = document.getElementById('translation-api-badge');
+    const deeplEl   = document.getElementById('deepl-status');
+    const googleEl  = document.getElementById('google-status');
+    const apiBadge  = document.getElementById('translation-api-badge');
     const geminiBadge = document.getElementById('gemini-status-badge');
-    const fbBadge = document.getElementById('firebase-badge');
+    const fbBadge   = document.getElementById('firebase-badge');
 
-    // 1. Update DeepL badge status
-    if (deeplEl) {
-      deeplEl.className = 'settings-api-status'; // reset
-      if (deeplKey) {
-        const trimmed = deeplKey.toLowerCase().trim();
-        if (allowedCodes.includes(trimmed)) {
-          if (serverStatus && serverStatus.hasDeeplKey) {
-            deeplEl.textContent = 'Code Applied';
-            deeplEl.classList.add('active');
-          } else {
-            deeplEl.textContent = 'Code Applied (No server key)';
-            deeplEl.classList.add('warning');
-          }
-        } else if (deeplKey.includes('-') || deeplKey.length > 20) {
-          deeplEl.textContent = 'Key Active';
-          deeplEl.classList.add('active');
-        } else {
-          deeplEl.textContent = 'Invalid Key/Code';
-          deeplEl.classList.add('danger');
-        }
-      } else {
-        // empty input
-        if (serverStatus && serverStatus.hasDeeplKey) {
-          deeplEl.textContent = 'Active (Server)';
-          deeplEl.classList.add('active');
-        } else {
-          deeplEl.textContent = '—';
-        }
-      }
+    /** Helper: set a .settings-api-status element */
+    function setStatus(el, text, state) {
+      if (!el) return;
+      el.className = 'settings-api-status';
+      el.textContent = text;
+      if (state) el.classList.add(state); // 'active' | 'warning' | 'danger'
     }
 
-    // 2. Update Google Translate badge status
-    if (googleEl) {
-      googleEl.className = 'settings-api-status'; // reset
-      if (googleKey) {
-        if (googleKey.startsWith('AIzaSy') || googleKey.length > 10) {
-          googleEl.textContent = 'Key Active';
-          googleEl.classList.add('active');
-        } else {
-          googleEl.textContent = 'Invalid Key';
-          googleEl.classList.add('danger');
-        }
-      } else {
-        // empty input
-        if (serverStatus && serverStatus.hasGoogleKey) {
-          googleEl.textContent = 'Active (Server)';
-          googleEl.classList.add('active');
-        } else {
-          googleEl.textContent = '—';
-        }
-      }
+    /** Helper: set a .settings-api-badge pill element */
+    function setBadge(el, text, state) {
+      if (!el) return;
+      el.className = 'settings-api-badge';
+      el.textContent = text;
+      if (state) el.classList.add(`badge--${state}`); // 'active' | 'warning' | 'danger' | 'disabled'
     }
 
-    // 3. Update Gemini badge status
-    if (geminiBadge) {
-      geminiBadge.className = 'settings-api-badge'; // reset
-      if (geminiKey) {
-        const trimmed = geminiKey.toLowerCase().trim();
-        if (allowedCodes.includes(trimmed)) {
-          geminiBadge.textContent = 'Code Applied';
-          geminiBadge.style.background = 'var(--accent-green-soft)';
-          geminiBadge.style.color = 'var(--accent-green)';
-          geminiBadge.style.borderColor = 'rgba(71,207,115,0.3)';
-        } else if (geminiKey.startsWith('AIzaSy') || geminiKey.length > 10) {
-          geminiBadge.textContent = 'Key Active';
-          geminiBadge.style.background = 'var(--accent-green-soft)';
-          geminiBadge.style.color = 'var(--accent-green)';
-          geminiBadge.style.borderColor = 'rgba(71,207,115,0.3)';
-        } else {
-          geminiBadge.textContent = 'Invalid Key';
-          geminiBadge.style.background = 'var(--accent-red-soft)';
-          geminiBadge.style.color = 'var(--accent-red)';
-          geminiBadge.style.borderColor = 'rgba(255,60,65,0.3)';
-        }
+    // 1. DeepL
+    if (deeplKey) {
+      const trimmed = deeplKey.toLowerCase().trim();
+      if (allowedCodes.includes(trimmed)) {
+        const hasServer = serverStatus && serverStatus.hasDeeplKey;
+        setStatus(deeplEl, hasServer ? 'Code Applied' : 'Code Applied (No server key)', hasServer ? 'active' : 'warning');
+      } else if (deeplKey.includes('-') || deeplKey.length > 20) {
+        setStatus(deeplEl, 'Key Active', 'active');
       } else {
-        geminiBadge.textContent = 'Disabled';
-        geminiBadge.style.background = 'rgba(0,0,0,0.06)';
-        geminiBadge.style.color = 'var(--text-muted)';
-        geminiBadge.style.borderColor = 'transparent';
+        setStatus(deeplEl, 'Invalid Key/Code', 'danger');
       }
+    } else {
+      const hasServer = serverStatus && serverStatus.hasDeeplKey;
+      setStatus(deeplEl, hasServer ? 'Active (Server)' : '—', hasServer ? 'active' : null);
     }
 
-    // 4. Update translation API header badge
+    // 2. Google Translate
+    if (googleKey) {
+      if (googleKey.startsWith('AIzaSy') || googleKey.length > 10) {
+        setStatus(googleEl, 'Key Active', 'active');
+      } else {
+        setStatus(googleEl, 'Invalid Key', 'danger');
+      }
+    } else {
+      const hasServer = serverStatus && serverStatus.hasGoogleKey;
+      setStatus(googleEl, hasServer ? 'Active (Server)' : '—', hasServer ? 'active' : null);
+    }
+
+    // 3. Gemini
+    if (geminiKey) {
+      const trimmed = geminiKey.toLowerCase().trim();
+      if (allowedCodes.includes(trimmed)) {
+        setBadge(geminiBadge, 'Code Applied', 'active');
+      } else if (geminiKey.startsWith('AIzaSy') || geminiKey.length > 10) {
+        setBadge(geminiBadge, 'Key Active', 'active');
+      } else {
+        setBadge(geminiBadge, 'Invalid Key', 'danger');
+      }
+    } else {
+      setBadge(geminiBadge, 'Disabled', 'disabled');
+    }
+
+    // 4. Translation API provider badge (navbar)
     if (apiBadge) {
       apiBadge.textContent = Translator.getActiveProviderName() || 'MyMemory';
     }
 
-    // 5. Update Firebase status badge
-    if (fbBadge) {
-      fbBadge.className = 'settings-api-badge'; // reset
-      if (serverStatus && serverStatus.hasFirebase) {
-        fbBadge.textContent = 'Connected';
-        fbBadge.style.background = 'var(--accent-green-soft)';
-        fbBadge.style.color = 'var(--accent-green)';
-        fbBadge.style.borderColor = 'rgba(71,207,115,0.3)';
-      } else {
-        fbBadge.textContent = 'Not connected';
-        fbBadge.style.background = 'rgba(0,0,0,0.06)';
-        fbBadge.style.color = 'var(--text-muted)';
-        fbBadge.style.borderColor = 'transparent';
-      }
+    // 5. Firebase
+    if (serverStatus && serverStatus.hasFirebase) {
+      setBadge(fbBadge, 'Connected', 'active');
+    } else {
+      setBadge(fbBadge, 'Not connected', 'disabled');
     }
   }
 
-  function cleanJsonString(str) {
-    let clean = str.trim();
-    if (clean.startsWith('```')) {
-      clean = clean.replace(/^```[a-zA-Z]*\n?/, '').replace(/\n?```$/, '');
-    }
-    return clean.trim();
-  }
-
-  async function callGemini(prompt, responseJson = false) {
-    const key = getGeminiKey();
-    if (!key) throw new Error('Gemini API Key is missing. Add it in Settings.');
-
-    const allowedCodes = ['fineanmol'];
-    const useProxy = allowedCodes.includes(key.trim().toLowerCase()) && window.location.protocol !== 'file:';
-
-    if (useProxy) {
-      let lastError = null;
-      let delay = 1000;
-
-      for (let attempt = 0; attempt < 3; attempt++) {
-        try {
-          const r = await fetch('/api/gemini', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt, responseJson, geminiCode: key })
-          });
-
-          if (!r.ok) {
-            const errData = await r.json().catch(() => ({}));
-            const msg = errData?.error || `HTTP ${r.status}`;
-            throw new Error(msg);
-          }
-
-          const data = await r.json();
-          const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (!text) throw new Error('Empty response from Gemini');
-
-          if (responseJson) {
-            try {
-              return JSON.parse(cleanJsonString(text));
-            } catch (e) {
-              console.error('Failed to parse Gemini response as JSON:', text);
-              throw e;
-            }
-          }
-          return text;
-        } catch (err) {
-          lastError = err;
-          console.warn(`Gemini proxy attempt ${attempt + 1} failed: ${err.message}`);
-          if (attempt < 2) {
-            await new Promise(resolve => setTimeout(resolve, delay));
-            delay *= 2;
-          }
-        }
-      }
-      throw lastError;
-    }
-
-    // Direct browser-to-Google client-side call (supports CORS)
-    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-3.5-flash:generateContent?key=${key}`;
-    const body = {
-      contents: [{ parts: [{ text: prompt }] }]
-    };
-    if (responseJson) {
-      body.generationConfig = {
-        responseMimeType: "application/json"
-      };
-    }
-
-    let lastError = null;
-    let delay = 1000;
-
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        const r = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body)
-        });
-
-        if (!r.ok) {
-          const errData = await r.json().catch(() => ({}));
-          const msg = errData?.error?.message || `HTTP ${r.status}`;
-          throw new Error(`Gemini API Error: ${msg}`);
-        }
-
-        const data = await r.json();
-        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!text) throw new Error('Empty response from Gemini');
-
-        if (responseJson) {
-          try {
-            return JSON.parse(cleanJsonString(text));
-          } catch (e) {
-            console.error('Failed to parse Gemini response as JSON:', text);
-            throw e;
-          }
-        }
-        return text;
-      } catch (err) {
-        lastError = err;
-        console.warn(`Gemini call attempt ${attempt + 1} failed: ${err.message}`);
-        // If it is a quota/limit or server error, wait and retry
-        if (attempt < 2) {
-          await new Promise(resolve => setTimeout(resolve, delay));
-          delay *= 2;
-        }
-      }
-    }
-    throw lastError;
-  }
 
   // ── State ────────────────────────────────────────────────────
   let state = {
@@ -339,6 +206,9 @@ const App = (() => {
 
   // ── Init (called once after first auth resolution) ─────────────
   function init() {
+    // Apply saved theme
+    applyTheme(localStorage.getItem('dd_theme') || 'system');
+
     // Sync environment classes
     const isProdEnv = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
     document.body.classList.toggle('prod-mode', isProdEnv);
@@ -1516,59 +1386,76 @@ const App = (() => {
     renderExercisePicker();
   }
 
-  // ── Backend Settings Page ──────────────────────────────────────
+  // ── Settings Page ──────────────────────────────────────────────
   async function initBackendPage() {
-    const isProdEnv = document.body.classList.contains('prod-mode');
-
-    // Update settings header dynamically
-    const titleEl = document.getElementById('settings-title');
-    const subEl = document.getElementById('settings-subtitle');
-    if (titleEl) titleEl.textContent = isProdEnv ? 'Settings' : 'Backend & Settings';
-    if (subEl) subEl.textContent = isProdEnv ? 'Manage your account and offline data' : 'Configure API keys, Firebase, and data management';
-
     updateGeminiStatusUI();
-
-    const banner = document.getElementById('backend-banner');
-    const icon = document.getElementById('backend-status-icon');
-    const title = document.getElementById('backend-status-title');
-    const sub = document.getElementById('backend-status-sub');
-
-    // Check server health
-    try {
-      const r = await fetch('/api/health');
-      if (r.ok) {
-        if (icon) icon.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>';
-        if (title) title.textContent = 'Server is running at http://localhost:3000';
-        if (sub) sub.innerHTML = 'Translation API calls are proxied securely — your keys stay on the server';
-        if (banner) banner.style.borderColor = 'rgba(71,207,115,0.35)';
-        if (banner) banner.style.background = 'rgba(71,207,115,0.06)';
-      }
-    } catch {
-      if (icon) icon.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
-      if (title) title.textContent = 'Server not detected';
-      if (sub) sub.innerHTML = 'Run <code>npm start</code> in the project folder, then open <code>http://localhost:3000</code>';
-      if (banner) banner.style.borderColor = 'rgba(255,60,65,0.35)';
-      if (banner) banner.style.background = 'rgba(255,60,65,0.06)';
-    }
 
     // Populate settings from localStorage
     const s = Translator.loadSettings();
     const pgProvider = document.getElementById('settings-page-provider');
-    const pgDeepl = document.getElementById('pg-deepl-key');
-    const pgGoogle = document.getElementById('pg-google-key');
-    if (pgProvider) pgProvider.value = s.provider || 'auto';
-    if (pgDeepl) pgDeepl.value = s.deeplKey || '';
-    if (pgGoogle) pgGoogle.value = s.googleKey || '';
+    const pgDeepl    = document.getElementById('pg-deepl-key');
+    const pgGoogle   = document.getElementById('pg-google-key');
+    if (pgProvider) pgProvider.value = s.provider  || 'auto';
+    if (pgDeepl)    pgDeepl.value    = s.deeplKey  || '';
+    if (pgGoogle)   pgGoogle.value   = s.googleKey || '';
+
+    // Populate goals & preferences
+    const cefrGoal = localStorage.getItem('dd_cefr_goal') || 'B1';
+    const dailyGoal = localStorage.getItem('dd_daily_word_goal') || '5';
+    const speechRate = localStorage.getItem('dd_speech_rate') || '1.0';
+    const theme = localStorage.getItem('dd_theme') || 'system';
+
+    const pgCefr = document.getElementById('settings-page-cefr-goal');
+    const pgDaily = document.getElementById('settings-page-daily-word-goal');
+    const pgSpeech = document.getElementById('settings-page-speech-rate');
+    const pgTheme = document.getElementById('settings-page-theme');
+
+    if (pgCefr) pgCefr.value = cefrGoal;
+    if (pgDaily) pgDaily.value = dailyGoal;
+    if (pgSpeech) pgSpeech.value = speechRate;
+    if (pgTheme) pgTheme.value = theme;
 
     // Show server API status if available
     let serverStatus = null;
     try {
       serverStatus = await Translator.fetchServerStatus();
     } catch (e) {
-      console.warn("Could not fetch server configuration status", e);
+      console.warn('Could not fetch server configuration status', e);
     }
     updateSettingsStatusBadges(serverStatus);
   }
+
+  function saveGoalsSettings() {
+    const cefr = document.getElementById('settings-page-cefr-goal')?.value || 'B1';
+    const daily = document.getElementById('settings-page-daily-word-goal')?.value || '5';
+    localStorage.setItem('dd_cefr_goal', cefr);
+    localStorage.setItem('dd_daily_word_goal', daily);
+    showToast('Goals saved successfully!', 'success');
+    
+    // Re-render Insights if currently open
+    if (typeof Insights !== 'undefined' && state.currentView === 'insights') {
+      Insights.render(WordBank.getStats());
+    }
+  }
+
+  function savePreferencesSettings() {
+    const speech = document.getElementById('settings-page-speech-rate')?.value || '1.0';
+    const theme = document.getElementById('settings-page-theme')?.value || 'system';
+    localStorage.setItem('dd_speech_rate', speech);
+    applyTheme(theme);
+    showToast('Preferences saved successfully!', 'success');
+  }
+
+  function applyTheme(theme) {
+    localStorage.setItem('dd_theme', theme);
+    const darkMedia = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const isDark = theme === 'dark' || (theme === 'system' && darkMedia);
+    
+    document.documentElement.classList.toggle('dark-theme', isDark);
+    document.body.classList.toggle('dark-theme', isDark);
+    document.body.classList.toggle('light-theme', !isDark);
+  }
+
 
   function savePageSettings() {
     const settings = {
@@ -1577,6 +1464,12 @@ const App = (() => {
       googleKey: document.getElementById('pg-google-key')?.value?.trim() || '',
     };
     Translator.saveSettings(settings);
+
+    // Save Gemini Key
+    const geminiKey = document.getElementById('setting-gemini-key')?.value?.trim() || '';
+    GeminiClient.saveKey(geminiKey);
+    updateGeminiStatusUI();
+
     // Also sync to drawer
     const drawerProvider = document.getElementById('setting-provider');
     const drawerDeepl = document.getElementById('setting-deepl-key');
@@ -1657,41 +1550,16 @@ const App = (() => {
     showToast('All data cleared', 'error');
   }
 
-  // ── Toast ─────────────────────────────────────────────────────
-  function showToast(message, type = 'info') {
-    const container = document.getElementById('toast-container');
-    const icons = { success: '✅', error: '❌', info: '💡' };
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    toast.innerHTML = `<span>${icons[type]}</span><span>${message}</span>`;
-    container.appendChild(toast);
+  // ── UI Utilities — delegating to UI module ───────────────────
+  //    All pure UI helpers live in js/ui.js (UI).
+  //    These wrappers keep existing call sites unchanged.
 
-    if (window.Motion) {
-      const { animate } = window.Motion;
-      animate(toast, { opacity: [0, 1], scale: [0.85, 1], y: [15, 0] }, { duration: 0.3, easing: [0.175, 0.885, 0.32, 1.275] });
-      setTimeout(() => {
-        animate(toast, { opacity: 0, y: -15, scale: 0.9 }, { duration: 0.25 }).then(() => toast.remove());
-      }, 2800);
-    } else {
-      setTimeout(() => toast.remove(), 3100);
-    }
-  }
-
-  // ── Utils ─────────────────────────────────────────────────────
-  function escHtml(str) {
-    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
-  function escAttr(str) { return String(str).replace(/'/g,"\\'").replace(/"/g,'\\"'); }
-  function capitalise(str) { return str ? str.charAt(0).toUpperCase() + str.slice(1) : ''; }
-  function formatDate(d) { if (!d) return ''; return new Date(d).toLocaleDateString('en-GB',{day:'numeric',month:'short'}); }
-  function formatTimeAgo(ts) {
-    const diff = Date.now() - ts;
-    const m = Math.floor(diff/60000), h = Math.floor(diff/3600000), d = Math.floor(diff/86400000);
-    if (m < 1) return 'just now';
-    if (m < 60) return `${m}m ago`;
-    if (h < 24) return `${h}h ago`;
-    return `${d}d ago`;
-  }
+  const showToast     = (msg, type) => UI.showToast(msg, type);
+  const escHtml       = (s) => UI.escHtml(s);
+  const escAttr       = (s) => UI.escAttr(s);
+  const capitalise    = (s) => UI.capitalise(s);
+  const formatDate    = (d) => UI.formatDate(d);
+  const formatTimeAgo = (ts) => UI.formatTimeAgo(ts);
 
   // ══════════════════════════════════════════════════════════════
   //  AUTH FLOW
@@ -2491,6 +2359,7 @@ const App = (() => {
     showCEFRInfo, showToast,
     // Backend settings page
     savePageSettings, updateFirebasePreview,
+    saveGoalsSettings, savePreferencesSettings,
     exportWordBank, exportCSV, importWordBank, clearAllData,
     // Auth
     handleAuthChange,

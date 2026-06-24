@@ -29,9 +29,107 @@ const Insights = (() => {
     { id: 'night_owl', name: 'Nachteule', desc: 'Translated/practised between 10 PM and 4 AM', emoji: '🦉' }
   ];
 
+  let communityMembers = null;
+  let liveInterval = null;
+
+  function initCommunityMembers(userXp) {
+    communityMembers = [
+      { name: 'Sabine L.', avatar: 'S', xp: userXp + 245 },
+      { name: 'Elena R.', avatar: 'E', xp: userXp + 110 },
+      { name: 'Hans M.', avatar: 'H', xp: Math.max(0, userXp - 75) },
+      { name: 'Anmol S.', avatar: 'A', xp: Math.max(0, userXp - 140) }
+    ];
+  }
+
+  function renderLeaderboard(userXp, userName = 'You', userAvatar = 'Y') {
+    const container = document.getElementById('leaderboard-list');
+    if (!container) return;
+
+    if (!communityMembers) {
+      initCommunityMembers(userXp);
+      startLiveUpdates(userXp, userName, userAvatar);
+    }
+
+    const players = [
+      ...communityMembers,
+      { name: userName, avatar: userAvatar, xp: userXp, isUser: true }
+    ];
+
+    // Sort by XP descending
+    players.sort((a, b) => b.xp - a.xp);
+
+    container.innerHTML = players.map((p, idx) => {
+      const isUrl = (typeof p.avatar === 'string') && (p.avatar.startsWith('http') || p.avatar.startsWith('/') || p.avatar.includes('googleusercontent') || p.avatar.includes('data:image'));
+      const avatarContent = isUrl
+        ? `<img src="${p.avatar}" alt="${escHtml(p.name)}" class="leaderboard-avatar-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+           <span class="leaderboard-avatar-fallback" style="display:none;">${escHtml(p.name.charAt(0).toUpperCase())}</span>`
+        : `<span>${escHtml(p.avatar)}</span>`;
+
+      return `
+        <div class="leaderboard-item ${p.isUser ? 'user-highlight' : ''}" id="player-${idx}">
+          <div class="leaderboard-rank">#${idx + 1}</div>
+          <div class="leaderboard-avatar">
+            ${avatarContent}
+          </div>
+          <div class="leaderboard-info">
+            <div class="leaderboard-name">${escHtml(p.name)} ${p.isUser ? '(You)' : ''}</div>
+            <div class="leaderboard-score" id="score-val-${idx}">
+              <span>⚡</span> ${p.xp} XP
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function startLiveUpdates(userXp, userName, userAvatar) {
+    if (liveInterval) clearInterval(liveInterval);
+
+    liveInterval = setInterval(() => {
+      if (!communityMembers) return;
+
+      // Pick a random community member to gain some XP
+      const idx = Math.floor(Math.random() * communityMembers.length);
+      const increment = Math.floor(Math.random() * 15) + 5;
+      communityMembers[idx].xp += increment;
+
+      // Re-render with new scores
+      renderLeaderboard(userXp, userName, userAvatar);
+
+      // Trigger a flash effect on the player's score element
+      setTimeout(() => {
+        const players = [
+          ...communityMembers,
+          { name: userName, avatar: userAvatar, xp: userXp, isUser: true }
+        ];
+        players.sort((a, b) => b.xp - a.xp);
+        const newIdx = players.findIndex(p => p.name === communityMembers[idx].name);
+        const scoreEl = document.getElementById(`score-val-${newIdx}`);
+        const itemEl = document.getElementById(`player-${newIdx}`);
+        if (scoreEl) {
+          scoreEl.classList.add('score-increase');
+          if (itemEl) {
+            itemEl.style.transform = 'scale(1.02)';
+            setTimeout(() => {
+              itemEl.style.transform = '';
+            }, 600);
+          }
+        }
+      }, 50);
+
+    }, 30000);
+  }
+
   function render(stats) {
     renderStatCards(stats);
     renderLevelProgress(stats);
+    
+    // Render Live Leaderboard Scorecard
+    const xp = stats.xp || 0;
+    const userName = (typeof Auth !== 'undefined') ? (Auth.getDisplayName() || 'You') : 'You';
+    const photoURL = (typeof Auth !== 'undefined' && !Auth.isGuest()) ? Auth.getPhotoURL() : null;
+    const userAvatar = photoURL || (userName ? userName[0].toUpperCase() : 'Y');
+    renderLeaderboard(xp, userName, userAvatar);
+
     renderCategoryBars(stats.categories);
     renderTopWords(stats.topWords);
     renderStreakCalendar(stats.datesUsed || []);
