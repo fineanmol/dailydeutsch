@@ -190,10 +190,57 @@ app.post('/api/synonyms', async (req, res) => {
   }
 });
 
+// ── Gemini proxy ──────────────────────────────────────────────
+app.post('/api/gemini', async (req, res) => {
+  const { prompt, responseJson = false, geminiCode } = req.body;
+
+  const serverGeminiKey = process.env.GEMINI_KEY || process.env.GOOGLE_KEY || '';
+  const allowedCodes    = (process.env.DEEPL_CODES || 'fineanmol').split(',').map(c => c.trim().toLowerCase());
+
+  if (!geminiCode || !allowedCodes.includes(geminiCode.trim().toLowerCase())) {
+    return res.status(401).json({ error: 'Unauthorized: Invalid access code' });
+  }
+
+  if (!serverGeminiKey) {
+    return res.status(503).json({ error: 'Service Unavailable: Server Gemini API key not configured' });
+  }
+
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${serverGeminiKey.trim()}`;
+    const body = {
+      contents: [{ parts: [{ text: prompt }] }]
+    };
+    if (responseJson) {
+      body.generationConfig = {
+        responseMimeType: "application/json"
+      };
+    }
+
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    if (!r.ok) {
+      const errData = await r.json().catch(() => ({}));
+      const msg = errData?.error?.message || `HTTP ${r.status}`;
+      return res.status(r.status).json({ error: `Gemini API Error: ${msg}` });
+    }
+
+    const data = await r.json();
+    res.json(data);
+  } catch (e) {
+    console.error('Gemini proxy failed:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── Start ─────────────────────────────────────────────────────
 app.listen(PORT, () => {
   const d = process.env.DEEPL_KEY  ? '✅ DeepL (code-auth active)' : '❌ DeepL (no key)';
   const g = process.env.GOOGLE_KEY ? '✅ Google'                   : '❌ Google (no key)';
+  const gemini = (process.env.GEMINI_KEY || process.env.GOOGLE_KEY) ? '✅ Gemini (code-auth active)' : '❌ Gemini (no key)';
   const f = process.env.FIREBASE_PROJECT_ID ? '✅ Firebase'        : '❌ Firebase (not configured)';
   console.log(`
 ╔══════════════════════════════════════╗
@@ -203,6 +250,7 @@ app.listen(PORT, () => {
 ╠══════════════════════════════════════╣
 ║  ${d.padEnd(35)}║
 ║  ${g.padEnd(35)}║
+║  ${gemini.padEnd(35)}║
 ║  ${f.padEnd(35)}║
 ╚══════════════════════════════════════╝
 

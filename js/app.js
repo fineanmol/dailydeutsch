@@ -103,7 +103,53 @@ const App = (() => {
     const key = getGeminiKey();
     if (!key) throw new Error('Gemini API Key is missing. Add it in Settings.');
 
-    // Use stable gemini-1.5-flash model name
+    const allowedCodes = ['fineanmol'];
+    const useProxy = allowedCodes.includes(key.trim().toLowerCase()) && window.location.protocol !== 'file:';
+
+    if (useProxy) {
+      let lastError = null;
+      let delay = 1000;
+
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const r = await fetch('/api/gemini', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt, responseJson, geminiCode: key })
+          });
+
+          if (!r.ok) {
+            const errData = await r.json().catch(() => ({}));
+            const msg = errData?.error || `HTTP ${r.status}`;
+            throw new Error(msg);
+          }
+
+          const data = await r.json();
+          const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (!text) throw new Error('Empty response from Gemini');
+
+          if (responseJson) {
+            try {
+              return JSON.parse(cleanJsonString(text));
+            } catch (e) {
+              console.error('Failed to parse Gemini response as JSON:', text);
+              throw e;
+            }
+          }
+          return text;
+        } catch (err) {
+          lastError = err;
+          console.warn(`Gemini proxy attempt ${attempt + 1} failed: ${err.message}`);
+          if (attempt < 2) {
+            await new Promise(resolve => setTimeout(resolve, delay));
+            delay *= 2;
+          }
+        }
+      }
+      throw lastError;
+    }
+
+    // Direct browser-to-Google client-side call (supports CORS)
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
     const body = {
       contents: [{ parts: [{ text: prompt }] }]
