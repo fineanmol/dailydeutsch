@@ -150,7 +150,7 @@ const App = (() => {
     }
 
     // Direct browser-to-Google client-side call (supports CORS)
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
+    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${key}`;
     const body = {
       contents: [{ parts: [{ text: prompt }] }]
     };
@@ -1399,11 +1399,6 @@ const App = (() => {
     if (subEl) subEl.textContent = isProdEnv ? 'Manage your account and offline data' : 'Configure API keys, Firebase, and data management';
 
     updateGeminiStatusUI();
-
-    if (isProdEnv) {
-      // In production mode, we don't need to check server health or populate keys
-      return;
-    }
 
     const banner = document.getElementById('backend-banner');
     const icon = document.getElementById('backend-status-icon');

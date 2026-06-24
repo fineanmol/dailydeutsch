@@ -7,7 +7,7 @@
   <title>Daily Deutsch — Build Your German Vocabulary</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="css/style.css?v=1.1.1" />
+  <link rel="stylesheet" href="css/style.css?v=1.1.2" />
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🇩🇪</text></svg>" />
 </head>
@@ -65,13 +65,13 @@
     <div class="settings-drawer-body">
 
       <!-- Active API Status -->
-      <div class="settings-status-bar dev-only" id="settings-status-bar">
+      <div class="settings-status-bar" id="settings-status-bar">
         <span class="settings-status-dot" id="settings-status-dot"></span>
         <span id="settings-status-text">Checking connection…</span>
       </div>
 
       <!-- Translation Provider -->
-      <div class="settings-section dev-only">
+      <div class="settings-section">
         <div class="settings-section-title">Translation API</div>
         <div class="settings-section-desc">
           Add your own API key to get better, more accurate translations.
@@ -117,7 +117,7 @@
       </div>
 
       <!-- Firebase -->
-      <div class="settings-section dev-only">
+      <div class="settings-section">
         <div class="settings-section-title">Firebase</div>
         <div class="settings-section-desc">
           Connect Firebase to sync your word bank across devices.
@@ -721,33 +721,13 @@
             </div>
           </div>
 
-          <!-- ── Translation Service (Production Only) ── -->
-          <div class="settings-page-card prod-only">
-            <div class="settings-page-card-header">
-              <span class="settings-page-card-icon">🌐</span>
-              <div>
-                <div class="settings-page-card-title">Translation Service</div>
-                <div class="settings-page-card-sub">Secure in-browser translations</div>
-              </div>
-              <span class="settings-api-badge">Active</span>
-            </div>
-            <div class="settings-form" style="line-height:1.5; font-size:0.88rem; color:var(--text-secondary);">
-              <p style="margin-bottom:0.75rem;">
-                Daily Deutsch is running in cloud-only mode. All German translations are handled directly in the browser via the <strong>MyMemory Translation API</strong>.
-              </p>
-              <p>
-                No setup or API keys are required. Your searches are processed privately and securely.
-              </p>
-            </div>
-          </div>
-
-          <!-- ── Translation API (Development Only) ── -->
-          <div class="settings-page-card dev-only">
+          <!-- ── Translation API ── -->
+          <div class="settings-page-card">
             <div class="settings-page-card-header">
               <span class="settings-page-card-icon">🔤</span>
               <div>
                 <div class="settings-page-card-title">Translation API</div>
-                <div class="settings-page-card-sub">Keys stored in <code>.env</code> — never exposed to the browser</div>
+                <div class="settings-page-card-sub">Keys stored securely on backend or locally</div>
               </div>
               <span class="settings-api-badge" id="translation-api-badge">MyMemory</span>
             </div>
@@ -771,7 +751,7 @@
                   </div>
                   <div class="settings-api-desc">
                     Free tier: 500k chars/month.<br>
-                    Add <code>DEEPL_KEY=your_key:fx</code> to <code>.env</code>
+                    Add <code>DEEPL_KEY=your_key:fx</code> to server or type code here
                   </div>
                   <div class="settings-input-wrap" style="margin-top:0.5rem">
                     <input class="input" id="pg-deepl-key" type="password" placeholder="xxxxxxxx:fx (stored locally only)" autocomplete="off" />
@@ -789,7 +769,7 @@
                   </div>
                   <div class="settings-api-desc">
                     Pay-as-you-go; $0 first 500k chars.<br>
-                    Add <code>GOOGLE_KEY=your_key</code> to <code>.env</code>
+                    Add <code>GOOGLE_KEY=your_key</code> to server
                   </div>
                   <div class="settings-input-wrap" style="margin-top:0.5rem">
                     <input class="input" id="pg-google-key" type="password" placeholder="AIzaSy… (stored locally only)" autocomplete="off" />
@@ -807,8 +787,8 @@
             </div>
           </div>
 
-          <!-- ── Firebase (Development Only) ── -->
-          <div class="settings-page-card dev-only">
+          <!-- ── Firebase ── -->
+          <div class="settings-page-card">
             <div class="settings-page-card-header">
               <span class="settings-page-card-icon">🔥</span>
               <div>
@@ -1015,16 +995,16 @@ FIREBASE_APP_ID=</pre>
 </script>
 
 <!-- Scripts (load order: Firebase globals must come first) -->
-<script src="js/motion.js?v=1.1.1"></script>
-<script src="js/auth.js?v=1.1.1"></script>
-<script src="js/db.js?v=1.1.1"></script>
-<script src="js/categories.js?v=1.1.1"></script>
-<script src="js/wordbank.js?v=1.1.1"></script>
-<script src="js/cefr.js?v=1.1.1"></script>
-<script src="js/translator.js?v=1.1.1"></script>
-<script src="js/exercises.js?v=1.1.1"></script>
-<script src="js/insights.js?v=1.1.1"></script>
-<script src="js/app.js?v=1.1.1"></script>
+<script src="js/motion.js?v=1.1.2"></script>
+<script src="js/auth.js?v=1.1.2"></script>
+<script src="js/db.js?v=1.1.2"></script>
+<script src="js/categories.js?v=1.1.2"></script>
+<script src="js/wordbank.js?v=1.1.2"></script>
+<script src="js/cefr.js?v=1.1.2"></script>
+<script src="js/translator.js?v=1.1.2"></script>
+<script src="js/exercises.js?v=1.1.2"></script>
+<script src="js/insights.js?v=1.1.2"></script>
+<script src="js/app.js?v=1.1.2"></script>
 <script>
   function togglePasswordVisibility(inputId) {
     const el = document.getElementById(inputId);

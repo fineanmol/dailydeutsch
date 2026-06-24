@@ -1,18 +1,18 @@
-const CACHE_NAME = 'daily-deutsch-v1.1.1';
+const CACHE_NAME = 'daily-deutsch-v1.1.2';
 const ASSETS = [
   './',
   './index.html',
-  './css/style.css?v=1.1.1',
-  './js/motion.js?v=1.1.1',
-  './js/auth.js?v=1.1.1',
-  './js/db.js?v=1.1.1',
-  './js/categories.js?v=1.1.1',
-  './js/wordbank.js?v=1.1.1',
-  './js/cefr.js?v=1.1.1',
-  './js/translator.js?v=1.1.1',
-  './js/exercises.js?v=1.1.1',
-  './js/insights.js?v=1.1.1',
-  './js/app.js?v=1.1.1',
+  './css/style.css?v=1.1.2',
+  './js/motion.js?v=1.1.2',
+  './js/auth.js?v=1.1.2',
+  './js/db.js?v=1.1.2',
+  './js/categories.js?v=1.1.2',
+  './js/wordbank.js?v=1.1.2',
+  './js/cefr.js?v=1.1.2',
+  './js/translator.js?v=1.1.2',
+  './js/exercises.js?v=1.1.2',
+  './js/insights.js?v=1.1.2',
+  './js/app.js?v=1.1.2',
   './icon.png',
   './manifest.json'
 ];
