@@ -140,10 +140,14 @@ const App = (() => {
 
     // 2. Google Translate
     if (googleKey) {
-      if (googleKey.startsWith('AIzaSy') || googleKey.length > 10) {
+      const trimmed = googleKey.toLowerCase().trim();
+      if (allowedCodes.includes(trimmed)) {
+        const hasServer = serverStatus && serverStatus.hasGoogleKey;
+        setStatus(googleEl, hasServer ? 'Code Applied' : 'Code Applied (No server key)', hasServer ? 'active' : 'warning');
+      } else if (googleKey.startsWith('AIzaSy') || googleKey.length > 10) {
         setStatus(googleEl, 'Key Active', 'active');
       } else {
-        setStatus(googleEl, 'Invalid Key', 'danger');
+        setStatus(googleEl, 'Invalid Key/Code', 'danger');
       }
     } else {
       const hasServer = serverStatus && serverStatus.hasGoogleKey;
