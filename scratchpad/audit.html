@@ -1,0 +1,436 @@
+<title>Daily Deutsch — Product & Architecture Audit</title>
+<meta name="description" content="Full cross-functional audit: security, UX, product, and a modularization plan for the Daily Deutsch PWA.">
+<style>
+  :root{
+    --ink:#101418; --ink-2:#1b2128; --paper:#f7f5f0; --panel:#ffffff;
+    --line:#e3ddd2; --line-dk:#2a323b;
+    --muted:#737e88; --muted-dk:#9aa6b0;
+    --sky:#0ebeff; --sky-deep:#0a7fb0;
+    --crit:#d83a2f; --crit-bg:#fbe9e7;
+    --warn:#c97d12; --warn-bg:#fbf1df;
+    --ok:#1f8a5b; --ok-bg:#e6f4ec;
+    --info:#4a6fa5; --info-bg:#eaf0f8;
+    --mono:'SFMono-Regular',ui-monospace,'JetBrains Mono',Menlo,Consolas,monospace;
+    --sans:'Inter','Segoe UI',system-ui,-apple-system,sans-serif;
+    --disp:'Archivo','Inter',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
+    line-height:1.55;-webkit-font-smoothing:antialiased;font-size:16px}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+
+  /* ---------- hero ---------- */
+  header.hero{background:var(--ink);color:#eef2f5;padding:64px 0 52px;
+    background-image:radial-gradient(circle at 88% -10%,rgba(14,190,255,.18),transparent 45%);
+    border-bottom:3px solid var(--sky)}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--sky);margin:0 0 18px}
+  h1{font-family:var(--disp);font-weight:800;font-size:clamp(2.4rem,6vw,4rem);line-height:1.02;
+    letter-spacing:-.02em;margin:0;text-wrap:balance;max-width:16ch}
+  .sub{color:var(--muted-dk);font-size:1.08rem;max-width:60ch;margin:20px 0 0}
+  .meta-row{display:flex;flex-wrap:wrap;gap:28px;margin-top:34px;
+    font-family:var(--mono);font-size:12.5px;color:var(--muted-dk)}
+  .meta-row b{color:#eef2f5;font-weight:600}
+
+  /* ---------- ledger ---------- */
+  .ledger{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);
+    border:1px solid var(--line);margin:-30px 0 0;border-radius:10px;overflow:hidden;
+    box-shadow:0 18px 40px -24px rgba(16,20,24,.5)}
+  .ledger .cell{background:var(--panel);padding:20px 22px}
+  .ledger .num{font-family:var(--disp);font-weight:800;font-size:2.6rem;line-height:1;
+    font-variant-numeric:tabular-nums;letter-spacing:-.03em}
+  .ledger .lbl{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--muted);margin-top:8px}
+  .ledger .cell.c-crit .num{color:var(--crit)}
+  .ledger .cell.c-warn .num{color:var(--warn)}
+  .ledger .cell.c-ok .num{color:var(--ok)}
+  .ledger .cell.c-info .num{color:var(--info)}
+
+  section{padding:52px 0 8px}
+  .kicker{font-family:var(--mono);font-size:12px;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--sky-deep);margin:0 0 6px}
+  h2{font-family:var(--disp);font-weight:800;font-size:1.9rem;letter-spacing:-.015em;margin:0 0 6px}
+  .lede{color:var(--muted);max-width:68ch;margin:0 0 28px}
+
+  /* ---------- finding cards ---------- */
+  .finding{background:var(--panel);border:1px solid var(--line);border-left-width:5px;
+    border-radius:10px;padding:20px 22px;margin:14px 0;
+    box-shadow:0 1px 0 rgba(16,20,24,.03)}
+  .finding.crit{border-left-color:var(--crit)}
+  .finding.warn{border-left-color:var(--warn)}
+  .finding.info{border-left-color:var(--info)}
+  .f-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:8px}
+  .f-id{font-family:var(--mono);font-size:12px;color:var(--muted);font-weight:600}
+  .f-title{font-family:var(--disp);font-weight:700;font-size:1.18rem;letter-spacing:-.01em;margin:0;flex:1;min-width:240px}
+  .sev{font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+    padding:4px 9px;border-radius:999px;white-space:nowrap}
+  .sev.crit{background:var(--crit-bg);color:var(--crit)}
+  .sev.warn{background:var(--warn-bg);color:var(--warn)}
+  .sev.info{background:var(--info-bg);color:var(--info)}
+  .sev.ok{background:var(--ok-bg);color:var(--ok)}
+  .finding p{margin:8px 0;color:#2c343c}
+  .ref{font-family:var(--mono);font-size:12.5px;background:#f0ece3;border:1px solid var(--line);
+    color:var(--ink-2);padding:2px 7px;border-radius:5px;white-space:nowrap}
+  .fix{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);font-size:.95rem}
+  .fix b{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ok);
+    display:inline-block;margin-right:6px}
+
+  /* ---------- code block ---------- */
+  pre{background:var(--ink);color:#dce3ea;border-radius:10px;padding:18px 20px;overflow-x:auto;
+    font-family:var(--mono);font-size:13px;line-height:1.6;margin:16px 0}
+  pre .c{color:#6b7782}
+  pre .k{color:var(--sky)}
+  pre .r{color:#ff8a7a}
+
+  /* ---------- arch diagram ---------- */
+  .arch{display:grid;grid-template-columns:1fr 56px 1fr;gap:0;align-items:center;margin:24px 0}
+  .arch .col{align-self:stretch}
+  .arch .stack{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .arch .stack h4{margin:0;font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    padding:12px 16px;border-bottom:1px solid var(--line);color:var(--muted)}
+  .blob{background:#fbe9e7;border:1px dashed var(--crit);color:#7a241c;border-radius:8px;
+    margin:14px;padding:16px;font-family:var(--mono);font-size:13px;text-align:center}
+  .blob .big{font-family:var(--disp);font-weight:800;font-size:1.4rem;display:block;margin-bottom:4px}
+  .mod{padding:9px 16px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:12.5px;
+    display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .mod:last-child{border-bottom:0}
+  .mod .ln{color:var(--muted)}
+  .mod.new{color:var(--ok)}
+  .arrow{text-align:center;font-size:24px;color:var(--sky-deep);font-family:var(--disp);font-weight:800}
+
+  /* ---------- phase plan ---------- */
+  .phase{border:1px solid var(--line);border-radius:10px;background:var(--panel);margin:14px 0;overflow:hidden}
+  .phase summary{cursor:pointer;list-style:none;padding:18px 22px;display:flex;align-items:center;gap:14px}
+  .phase summary::-webkit-details-marker{display:none}
+  .phase[open] summary{border-bottom:1px solid var(--line)}
+  .pnum{font-family:var(--disp);font-weight:800;font-size:1.5rem;color:var(--sky-deep);
+    font-variant-numeric:tabular-nums;min-width:42px}
+  .ptitle{font-family:var(--disp);font-weight:700;font-size:1.12rem;flex:1}
+  .ptag{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+    padding:4px 9px;border-radius:999px;background:#eef2f5;color:var(--muted)}
+  .ptag.risk-lo{background:var(--ok-bg);color:var(--ok)}
+  .ptag.risk-md{background:var(--warn-bg);color:var(--warn)}
+  .pbody{padding:6px 22px 20px}
+  .pbody ul{margin:10px 0;padding-left:20px}
+  .pbody li{margin:6px 0}
+
+  table{width:100%;border-collapse:collapse;font-size:14px;margin:8px 0}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  td .ref{font-size:11.5px}
+
+  .callout{background:var(--crit-bg);border:1px solid #f3c9c4;border-left:5px solid var(--crit);
+    border-radius:10px;padding:20px 22px;margin:18px 0}
+  .callout h3{margin:0 0 6px;font-family:var(--disp);color:#8a241c;font-size:1.15rem}
+  .callout p{margin:6px 0;color:#5e211c}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .pill{display:inline-block;font-family:var(--mono);font-size:11px;padding:3px 8px;border-radius:6px;
+    background:#eef2f5;color:var(--muted);margin:2px 4px 2px 0}
+
+  footer{margin-top:60px;padding:30px 0 50px;border-top:1px solid var(--line);color:var(--muted);
+    font-family:var(--mono);font-size:12px}
+  .disclaimer{background:var(--warn-bg);border:1px solid #ecd8a8;border-radius:8px;padding:12px 16px;
+    font-size:12.5px;color:#7a5410;margin-top:18px;font-family:var(--sans)}
+
+  @media(max-width:760px){
+    .ledger{grid-template-columns:repeat(2,1fr)}
+    .arch{grid-template-columns:1fr;gap:10px}
+    .arch .arrow{transform:rotate(90deg)}
+    .grid2{grid-template-columns:1fr}
+  }
+  @media(prefers-reduced-motion:no-preference){
+    .finding{transition:transform .15s ease,box-shadow .15s ease}
+    .finding:hover{transform:translateY(-1px);box-shadow:0 6px 18px -10px rgba(16,20,24,.3)}
+  }
+</style>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Product · Design · Security · Architecture Audit</p>
+    <h1>Daily Deutsch needs a vault and a backbone.</h1>
+    <p class="sub">A vanilla-JS German-learning PWA with genuinely strong feature depth — translator, six exercise modes, AI tooling, gamified insights — held back by a leaking credential, a forgeable leaderboard, and a 3,600-line monolith that won't scale to production traffic.</p>
+    <div class="meta-row">
+      <span><b>~6,450</b> lines JS</span>
+      <span><b>15</b> modules</span>
+      <span><b>app.js</b> = 3,605 lines (56%)</span>
+      <span>Reviewed <b>26 Jun 2026</b></span>
+      <span>branch <b>main</b></span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="ledger" role="list" aria-label="Findings by severity">
+    <div class="cell c-crit" role="listitem"><div class="num">2</div><div class="lbl">Critical</div></div>
+    <div class="cell c-warn" role="listitem"><div class="num">9</div><div class="lbl">High / Medium</div></div>
+    <div class="cell c-info" role="listitem"><div class="num">12</div><div class="lbl">UX / Design / A11y</div></div>
+    <div class="cell c-ok" role="listitem"><div class="num">10</div><div class="lbl">Strengths to keep</div></div>
+  </div>
+</div>
+
+<!-- ============ SECURITY ============ -->
+<section class="wrap">
+  <p class="kicker">01 — Security &amp; Data Integrity</p>
+  <h2>Fix these before another deploy</h2>
+  <p class="lede">Two findings expose money and trust directly. They are not architectural debt — they ship live in the production client right now, and the client cannot be trusted because anyone can read and edit it from DevTools.</p>
+
+  <div class="callout">
+    <h3>⚠ A live API credential is committed to the repo</h3>
+    <p>A working Google Gemini API key sits in <span class="ref">js/gemini.js:17</span>, base64-encoded with a comment stating it was obfuscated "to bypass GitHub scanners." Base64 is not encryption — any visitor can run <span class="ref">atob(...)</span> in the console and bill your account. <b>I have not reproduced the key value here.</b> Per data-handling policy: treat it as compromised, revoke and rotate it now, and route all Gemini calls through the existing <span class="ref">/api/gemini</span> server proxy so no key ever reaches the browser.</p>
+  </div>
+
+  <div class="finding crit">
+    <div class="f-head">
+      <span class="f-id">SEC-01</span>
+      <h3 class="f-title">Obfuscated Gemini trial key in client bundle</h3>
+      <span class="sev crit">Critical</span>
+    </div>
+    <p><span class="ref">js/gemini.js:16–24</span> — The trial key is shipped to every browser. The 3-call trial limit is enforced in <span class="ref">localStorage</span> (<span class="ref">js/app.js</span> trial counter), so a user clears storage or edits the count and gets unlimited paid AI calls on your dime.</p>
+    <div class="fix"><b>Fix</b> Rotate the key. Delete <span class="ref">OBFUSCATED_TRIAL_KEY</span>. Meter the trial server-side by IP/auth-uid in <span class="ref">/api/gemini</span>, which already has the real key.</div>
+  </div>
+
+  <div class="finding crit">
+    <div class="f-head">
+      <span class="f-id">SEC-02</span>
+      <h3 class="f-title">Leaderboard rank is fully forgeable</h3>
+      <span class="sev crit">Critical</span>
+    </div>
+    <p>XP and level are computed client-side (<span class="ref">js/leaderboard.js:41–42</span>) and written straight to a public <span class="ref">profiles/{uid}</span> doc. The Firestore rule (<span class="ref">firestore.rules:11–17</span>) allows any authed user — including anonymous guests — to write that doc with <em>no value validation</em>, and the board sorts by <span class="ref">xp desc</span>. One console line sets <span class="ref">xp: 9999999</span> and tops the board.</p>
+    <div class="fix"><b>Fix</b> Make XP server-authoritative (Cloud Function increments on verified exercise events), or add a <span class="ref">request.resource.data.xp</span> validation guard in rules. At minimum, gate the leaderboard to non-guest accounts.</div>
+  </div>
+
+  <div class="finding warn">
+    <div class="f-head">
+      <span class="f-id">SEC-03</span>
+      <h3 class="f-title">Hardcoded proxy access codes in client</h3>
+      <span class="sev warn">High</span>
+    </div>
+    <p><span class="ref">js/gemini.js:28</span> ships <span class="ref">["fineanmol","admin"]</span> as codes that unlock the server's real DeepL/Gemini keys via the proxy (<span class="ref">server.js:199</span>). Anyone reading the bundle can impersonate the developer and burn server quota. No rate limiting exists on <span class="ref">/api/gemini</span> or <span class="ref">/api/translate</span>.</p>
+    <div class="fix"><b>Fix</b> Remove codes from the client. Authenticate the proxy with the Firebase ID token (verify server-side), and add per-uid rate limiting.</div>
+  </div>
+
+  <div class="finding warn">
+    <div class="f-head">
+      <span class="f-id">SEC-04</span>
+      <h3 class="f-title">Migration race can drop offline words</h3>
+      <span class="sev warn">Medium</span>
+    </div>
+    <p><span class="ref">js/db.js:95–133</span> — The one-time <span class="ref">LS_MIGRATED</span> flag means words added offline <em>after</em> the first login→logout cycle never migrate on the next login. Writes are fire-and-forget (<span class="ref">.catch(console.error)</span>) with no retry or user notice.</p>
+    <div class="fix"><b>Fix</b> Replace the boolean flag with a per-word <span class="ref">synced</span> marker and a reconcile-on-login pass; surface failed writes in the UI.</div>
+  </div>
+
+  <div class="finding warn">
+    <div class="f-head">
+      <span class="f-id">SEC-05</span>
+      <h3 class="f-title">XP writes are read-modify-write, not atomic</h3>
+      <span class="sev warn">Medium</span>
+    </div>
+    <p><span class="ref">js/wordbank.js:47–60</span> reads stats into memory, adds, and writes back. Two tabs racing both lose increments. No Firestore transaction or <span class="ref">FieldValue.increment()</span>.</p>
+    <div class="fix"><b>Fix</b> Use <span class="ref">FieldValue.increment(amount)</span> for XP/streak deltas.</div>
+  </div>
+
+  <p style="font-family:var(--mono);font-size:13px;color:var(--muted);margin-top:24px">
+    Also noted (lower priority): Firebase web config in <span class="ref">index.html:1247</span> is public-by-design but should still be rotated given the repo history; user-entered DeepL/Google keys persist in <span class="ref">localStorage</span> (<span class="ref">js/translator.js:20</span>); guest profiles are world-readable to all authed users; service-worker cache (<span class="ref">sw.js</span>) needs an update-available prompt. HTML escaping via <span class="ref">UI.escHtml</span> is applied consistently — no live XSS found.
+  </p>
+</section>
+
+<!-- ============ UX / PRODUCT ============ -->
+<section class="wrap">
+  <p class="kicker">02 — Product &amp; UX</p>
+  <h2>The features are there. The moments around them aren't.</h2>
+  <p class="lede">As a PM: the core loop (translate → save → practise) is sound and the gamification is well-judged. The gaps are at the edges — first run, empty states, failure states, and the freemium pitch — exactly where new users decide whether to stay.</p>
+
+  <div class="grid2">
+    <div class="finding info">
+      <div class="f-head"><span class="f-id">UX-01</span><h3 class="f-title">No onboarding</h3><span class="sev info">High</span></div>
+      <p>Users land on a login screen straight into 6–7 tabs with no value pitch or guided first translation. No "what is this / why save words" moment.</p>
+    </div>
+    <div class="finding info">
+      <div class="f-head"><span class="f-id">UX-02</span><h3 class="f-title">Trial limit is invisible</h3><span class="sev info">High</span></div>
+      <p>AI buttons carry an empty <span class="ref">.trial-badge</span> (<span class="ref">index.html:717,835</span>). No "2 left" counter, no upgrade path when the 3 calls run out — the feature just breaks.</p>
+    </div>
+    <div class="finding info">
+      <div class="f-head"><span class="f-id">UX-03</span><h3 class="f-title">Silent translation failure</h3><span class="sev info">High</span></div>
+      <p>When all providers fail the result area goes blank — no error, no retry. Users can't tell offline from broken.</p>
+    </div>
+    <div class="finding info">
+      <div class="f-head"><span class="f-id">UX-04</span><h3 class="f-title">BYOK setup is the paywall</h3><span class="sev info">Med</span></div>
+      <p>To unlock AI, users must mint keys at 3 services and paste them. High friction, weak value copy (<span class="ref">index.html:1067</span>) — no "why bother" and no free-tier reassurance.</p>
+    </div>
+    <div class="finding info">
+      <div class="f-head"><span class="f-id">UX-05</span><h3 class="f-title">Loading = plain text</h3><span class="sev info">Med</span></div>
+      <p>"Loading scoreboard…" (<span class="ref">index.html:789</span>) instead of skeletons. Stale counts (e.g. <span class="ref">ex-word-count</span>) don't refresh without reload.</p>
+    </div>
+    <div class="finding info">
+      <div class="f-head"><span class="f-id">UX-06</span><h3 class="f-title">No save feedback</h3><span class="sev info">Med</span></div>
+      <p>Save Profile / Save Goals / Save Keys give no toast or disabled state. Settings drawer doesn't close on save.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ DESIGN / A11Y ============ -->
+<section class="wrap">
+  <p class="kicker">03 — Design &amp; Accessibility</p>
+  <h2>Strong visual system, leaky tokens, thin a11y</h2>
+  <p class="lede">As a designer: the card-based light theme is cohesive and the Motion One work is tasteful. The problems are consistency drift and accessibility basics that block real users.</p>
+
+  <table>
+    <thead><tr><th style="width:28%">Issue</th><th>Detail</th><th style="width:18%">Where</th><th style="width:10%">Sev</th></tr></thead>
+    <tbody>
+      <tr><td>Hardcoded colors override tokens</td><td>Inline hex &amp; <span class="ref">font-family</span> bypass the <span class="ref">--token</span> system; risks dark-mode breakage</td><td><span class="ref">index.html:41,883</span></td><td><span class="sev warn">Med</span></td></tr>
+      <tr><td>No focus trap in modals</td><td><span class="ref">UI.showModal</span> doesn't trap focus or restore it on close; no <span class="ref">role="dialog"</span> on the settings drawer</td><td><span class="ref">js/ui.js:85</span></td><td><span class="sev warn">High</span></td></tr>
+      <tr><td>Broken heading hierarchy</td><td>Settings section titles are <span class="ref">&lt;div&gt;</span>, not headings — screen-reader outline collapses</td><td><span class="ref">index.html:909</span></td><td><span class="sev info">Med</span></td></tr>
+      <tr><td>Dropdown not keyboard-operable</td><td>Avatar menu is <span class="ref">onclick</span>-only; no Enter/Space/Esc handling</td><td><span class="ref">index.html:271</span></td><td><span class="sev info">Med</span></td></tr>
+      <tr><td>Placeholder used as label</td><td>Auditor textarea relies on placeholder, no <span class="ref">&lt;label&gt;</span></td><td><span class="ref">index.html:708</span></td><td><span class="sev info">Low</span></td></tr>
+      <tr><td>PWA manifest incomplete</td><td>Single 1024px icon — needs 192/512; no maskable icon, no screenshots; orientation locked to portrait</td><td><span class="ref">manifest.json</span></td><td><span class="sev info">Med</span></td></tr>
+      <tr><td>i18n only half-wired</td><td><span class="ref">language.js</span> supports 7 target languages but app chrome/titles are hardcoded English</td><td><span class="ref">js/language.js</span></td><td><span class="sev info">Low</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ ARCHITECTURE ============ -->
+<section class="wrap">
+  <p class="kicker">04 — Architecture · The Senior-Dev View</p>
+  <h2>One file does 90 jobs</h2>
+  <p class="lede">The codebase already has a decent module pattern — <span class="ref">DB</span>, <span class="ref">Translator</span>, <span class="ref">Auth</span>, <span class="ref">Exercises</span> are clean IIFEs talking through a global namespace. The problem is <span class="ref">App</span>: a 3,605-line god-module holding routing, every exercise's render+state machine, all AI features, settings, auth UI, and ~50 inline-HTML builders. It can't be tested, split across a team, or reasoned about safely.</p>
+
+  <div class="arch">
+    <div class="col">
+      <div class="stack">
+        <h4>Today</h4>
+        <div class="blob"><span class="big">app.js</span>3,605 lines · ~90 functions · 1 catch-all <code>state</code> object · 23+ fields mutated in 100+ places</div>
+        <div class="mod"><span>db / auth / translator / exercises…</span><span class="ln">clean ✓</span></div>
+      </div>
+    </div>
+    <div class="arrow" aria-hidden="true">→</div>
+    <div class="col">
+      <div class="stack">
+        <h4>Target — feature modules</h4>
+        <div class="mod new"><span>core/state.js</span><span class="ln">store + events</span></div>
+        <div class="mod new"><span>core/router.js</span><span class="ln">navigation</span></div>
+        <div class="mod new"><span>core/dom.js + tpl.js</span><span class="ln">render helpers</span></div>
+        <div class="mod new"><span>features/translate/</span><span class="ln">~450 ln</span></div>
+        <div class="mod new"><span>features/exercises/*</span><span class="ln">6 modes</span></div>
+        <div class="mod new"><span>features/ai/</span><span class="ln">story·audit·verb</span></div>
+        <div class="mod new"><span>features/settings/</span><span class="ln">+ sync</span></div>
+        <div class="mod new"><span>features/auth-ui/</span><span class="ln">profile·login</span></div>
+        <div class="mod"><span>db·translator·gemini·…</span><span class="ln">unchanged ✓</span></div>
+      </div>
+    </div>
+  </div>
+
+  <h3 style="font-family:var(--disp);font-size:1.2rem;margin-top:28px">The four structural problems</h3>
+  <div class="finding info">
+    <div class="f-head"><span class="f-id">ARC-01</span><h3 class="f-title">A single mutable <code>state</code> object, mutated everywhere</h3></div>
+    <p>One <span class="ref">state</span> (<span class="ref">js/app.js:405–428</span>) mixes UI flags, current translation, and live exercise data. 100+ scattered mutation sites, with exercise code adding dynamic fields at runtime. No single source of truth, no change events → render functions are called manually after every mutation.</p>
+  </div>
+  <div class="finding info">
+    <div class="f-head"><span class="f-id">ARC-02</span><h3 class="f-title">God functions blend fetch + parse + state + DOM</h3></div>
+    <p><span class="ref">analyzeGermanSentence</span> (131 ln), <span class="ref">auditSentence</span> (121 ln), <span class="ref">renderWordBank</span> (88 ln), <span class="ref">handleAuthChange</span> (84 ln) each own networking, JSON parsing, state writes, <em>and</em> inline-HTML rendering. Nothing is unit-testable.</p>
+  </div>
+  <div class="finding info">
+    <div class="f-head"><span class="f-id">ARC-03</span><h3 class="f-title">~50 inline HTML string builders</h3></div>
+    <p>Markup is concatenated in JS throughout, with manual <span class="ref">escHtml</span> discipline as the only XSS guard. Duplicated card/badge/result templates (e.g. auditor markup duplicated between <span class="ref">auditSentence</span> and <span class="ref">renderAuditorResults</span>).</p>
+  </div>
+  <div class="finding info">
+    <div class="f-head"><span class="f-id">ARC-04</span><h3 class="f-title">Coupling via <code>typeof X !== 'undefined'</code> + load order</h3></div>
+    <p>Modules reach each other through global names guarded by <span class="ref">typeof</span> checks scattered ~30 times. Bootstrap depends on <span class="ref">&lt;script&gt;</span> tag order in <span class="ref">index.html</span> — fragile and invisible.</p>
+  </div>
+</section>
+
+<!-- ============ THE PLAN ============ -->
+<section class="wrap">
+  <p class="kicker">05 — Modularization Plan</p>
+  <h2>Six phases, lowest risk first</h2>
+  <p class="lede">No framework, no build step required — keep the IIFE-namespace pattern the codebase already uses and split by concern. Each phase ships independently and leaves the app working. Security fixes lead because they're cheap and high-stakes.</p>
+
+  <details class="phase" open>
+    <summary><span class="pnum">P0</span><span class="ptitle">Stop the bleeding — security</span><span class="ptag risk-lo">low risk · do first</span></summary>
+    <div class="pbody">
+      <ul>
+        <li>Rotate the Gemini key &amp; Firebase config; delete <span class="ref">OBFUSCATED_TRIAL_KEY</span> and the access-code array.</li>
+        <li>Move all Gemini calls behind <span class="ref">/api/gemini</span>; authenticate the proxy with the Firebase ID token; add per-uid rate limiting + a server-side trial counter.</li>
+        <li>Add an <span class="ref">xp</span> validation guard to <span class="ref">firestore.rules</span> (or a Cloud Function); switch XP writes to <span class="ref">FieldValue.increment</span>.</li>
+      </ul>
+      <p style="margin:0;color:var(--muted)">No refactor needed — surgical edits to <span class="ref">gemini.js</span>, <span class="ref">server.js</span>, <span class="ref">firestore.rules</span>, <span class="ref">wordbank.js</span>.</p>
+    </div>
+  </details>
+
+  <details class="phase">
+    <summary><span class="pnum">P1</span><span class="ptitle">Extract the core: state store, router, DOM/template helpers</span><span class="ptag risk-md">med risk · foundation</span></summary>
+    <div class="pbody">
+      <ul>
+        <li><span class="ref">core/store.js</span> — wrap the <span class="ref">state</span> object in a tiny pub/sub store (<span class="ref">get / set / subscribe</span>). Replaces 100+ raw mutations with intentional updates and auto-render on change.</li>
+        <li><span class="ref">core/router.js</span> — lift <span class="ref">navigateTo</span> / <span class="ref">setupNavigation</span> out of App.</li>
+        <li><span class="ref">core/tpl.js</span> — a <span class="ref">html``</span> tagged-template helper that auto-escapes interpolations, killing the manual <span class="ref">escHtml</span> footgun and de-duplicating templates.</li>
+      </ul>
+      <p style="margin:0;color:var(--muted)">This phase unblocks every later one. Do it before splitting features.</p>
+    </div>
+  </details>
+
+  <details class="phase">
+    <summary><span class="pnum">P2</span><span class="ptitle">Carve out the exercise engine</span><span class="ptag risk-md">med risk</span></summary>
+    <div class="pbody">
+      <ul>
+        <li>The biggest single win: ~1,000 lines of flashcard/MC/FITB/arrangement/match/auditor render + state machines move to <span class="ref">features/exercises/</span> (one file per mode + a shared <span class="ref">runner.js</span>).</li>
+        <li>Formalize each mode's runtime data (currently dynamic fields on <span class="ref">state</span>) into the store under <span class="ref">state.exercise</span>.</li>
+      </ul>
+    </div>
+  </details>
+
+  <details class="phase">
+    <summary><span class="pnum">P3</span><span class="ptitle">Split translate + AI features</span><span class="ptag risk-md">med risk</span></summary>
+    <div class="pbody">
+      <ul>
+        <li><span class="ref">features/translate/</span> — <span class="ref">doTranslate</span>, <span class="ref">displayResult</span>, synonyms, level variations, history.</li>
+        <li><span class="ref">features/ai/</span> — story generation, sentence auditor, verb conjugator, mistake explainer. Centralize the trial gate here as one function instead of four repeated guards.</li>
+      </ul>
+    </div>
+  </details>
+
+  <details class="phase">
+    <summary><span class="pnum">P4</span><span class="ptitle">Settings, sync &amp; auth-UI modules</span><span class="ptag risk-lo">low risk</span></summary>
+    <div class="pbody">
+      <ul>
+        <li><span class="ref">features/settings/</span> — forms, theme, import/export, the localStorage↔Firestore sync logic (today tangled in <span class="ref">handleAuthChange</span>).</li>
+        <li><span class="ref">features/auth-ui/</span> — <span class="ref">updateUserProfile</span>, login/guest/upgrade flows, profile dropdown.</li>
+      </ul>
+    </div>
+  </details>
+
+  <details class="phase">
+    <summary><span class="pnum">P5</span><span class="ptitle">Optional: add a build step + tests</span><span class="ptag risk-lo">low risk · later</span></summary>
+    <div class="pbody">
+      <ul>
+        <li>Once modules are clean, introduce ES modules + a bundler (Vite) to replace global-namespace + script-order coupling with real <span class="ref">import</span>s.</li>
+        <li>Now-pure functions (CEFR detection, category detection, XP math, JSON cleaning, store reducers) become unit-testable. Add Vitest on those first.</li>
+      </ul>
+      <p style="margin:0;color:var(--muted)">Defer until the split lands — sequencing a bundler before the carve-out just moves the mess.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ STRENGTHS ============ -->
+<section class="wrap">
+  <p class="kicker">06 — Keep These</p>
+  <h2>What's already right</h2>
+  <p class="lede">Refactors break things. These are load-bearing and well-built — preserve their behavior through every phase.</p>
+  <p>
+    <span class="pill">✓ clean IIFE module pattern in db/auth/translator/exercises</span>
+    <span class="pill">✓ consistent escHtml usage</span>
+    <span class="pill">✓ provider fallback chain (DeepL→Google→MyMemory)</span>
+    <span class="pill">✓ SM-2 spaced repetition</span>
+    <span class="pill">✓ tasteful Motion One animation</span>
+    <span class="pill">✓ offline-first service worker</span>
+    <span class="pill">✓ BYOK monetization (ethical, no lock-in)</span>
+    <span class="pill">✓ cohesive light-theme design system</span>
+    <span class="pill">✓ real Firebase auth + per-user data isolation</span>
+    <span class="pill">✓ feature depth: 6 exercise modes + AI tooling</span>
+  </p>
+</section>
+
+<footer class="wrap">
+  <div>DAILY DEUTSCH · AUDIT v1 · 26 JUN 2026 · app.js 3,605 LN → 6-PHASE CARVE-OUT</div>
+  <div class="disclaimer"><b>Note:</b> This audit was AI-generated. Verify all security findings and rotate any exposed credentials before acting. The credential value itself has been withheld from this report — retrieve it from the source file to rotate it.</div>
+</footer>

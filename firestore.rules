@@ -1,25 +1,48 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Private user data (words, history, stats, settings)
+
+    // XP cap: ~50 actions/day * ~30 XP * 365 days * 5 years ≈ 2.7M. A
+    // 5,000,000 ceiling leaves generous headroom for legitimate long-term
+    // users while making an obviously-forged score (e.g. 9,999,999)
+    // impossible to write.
+    function validProfile(d) {
+      return d.xp is int      && d.xp >= 0      && d.xp <= 5000000
+          && d.level is int   && d.level >= 1   && d.level <= 250
+          && d.streak is int  && d.streak >= 0  && d.streak <= 3650
+          && d.name is string && d.name.size() <= 60
+          && d.uid is string  && d.uid == request.auth.uid;
+    }
+
+    // ── Private user data (words, history, stats, settings) ──────
+    // Fully owner-scoped. This is the authoritative store; the public
+    // profile below is a denormalized, validated projection of it.
     match /users/{userId}/{document=**} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
-    
-    // Public user profiles (for live leaderboard)
+
+    // ── Public user profiles (live leaderboard) ──────────────────
     match /profiles/{profileId} {
-      // Any authenticated user (including anonymous guest sessions) can read the leaderboard
+
+      // Anyone signed in can read the leaderboard.
       allow read: if request.auth != null;
-      
-      // Users can only write/update their own profile document
-      allow write: if request.auth != null && request.auth.uid == profileId;
+
+      // Owner-only writes, with strict validation so a client cannot
+      // forge arbitrary XP/level/streak to top the board. These bounds
+      // are not a substitute for server-authoritative scoring, but they
+      // stop trivial console tampering (e.g. xp: 9999999).
+      allow write: if request.auth != null
+        && request.auth.uid == profileId
+        && validProfile(request.resource.data);
     }
-    
-    // Waitlist collection for Pro interest signals
+
+    // ── Waitlist (Pro interest signals) ──────────────────────────
+    // Create-only, with a shape + size guard.
     match /waitlist/{docId} {
-      allow create: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.email is string
+        && request.resource.data.email.size() <= 254;
+      allow read, update, delete: if false;
     }
-    
   }
 }

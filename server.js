@@ -13,6 +13,7 @@ const express    = require('express');
 const cors       = require('cors');
 const fetch      = require('node-fetch');
 const path       = require('path');
+const { jwtVerify, createRemoteJWKSet } = require('jose');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -20,6 +21,60 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname)));   // serves index.html + js/ + css/
+
+// ── Firebase ID-token verification (no service account needed) ────
+// Verifies the token signature against Google's public keys and checks
+// issuer/audience against the project. Identifies the user so we can
+// meter the free AI trial per-uid and rate-limit abuse.
+const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'my-german-builder';
+const _jwks = createRemoteJWKSet(new URL(
+  'https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com'
+));
+
+async function verifyIdToken(authHeader) {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
+  const token = authHeader.slice(7).trim();
+  if (!token) return null;
+  try {
+    const { payload } = await jwtVerify(token, _jwks, {
+      issuer: `https://securetoken.google.com/${FIREBASE_PROJECT_ID}`,
+      audience: FIREBASE_PROJECT_ID,
+    });
+    // sub is the Firebase uid
+    return payload.sub ? { uid: payload.sub, ...payload } : null;
+  } catch (e) {
+    console.warn('[auth] token verify failed:', e.message);
+    return null;
+  }
+}
+
+// ── In-memory trial + rate limiting (per-uid / per-ip) ────────────
+// Note: in-memory state resets on serverless cold start. For a single
+// always-on instance it works; for multi-instance/serverless, back this
+// with a shared store (Redis / Firestore). The free trial cap is a soft
+// abuse guard, not a billing-critical boundary.
+const TRIAL_LIMIT      = Number(process.env.TRIAL_LIMIT || 3);
+const RATE_WINDOW_MS   = 60 * 1000;
+const RATE_MAX_PER_MIN = Number(process.env.RATE_MAX_PER_MIN || 20);
+
+const _trialUsed = new Map();   // uid -> count (lifetime, this instance)
+const _rate      = new Map();   // key -> { count, resetAt }
+
+function rateLimited(key) {
+  const now = Date.now();
+  const rec = _rate.get(key);
+  if (!rec || now > rec.resetAt) {
+    _rate.set(key, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    return false;
+  }
+  rec.count += 1;
+  return rec.count > RATE_MAX_PER_MIN;
+}
+
+function clientIp(req) {
+  return (req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown')
+    .toString().split(',')[0].trim();
+}
 
 // ── Health ────────────────────────────────────────────────────
 app.get('/api/health', (_req, res) => {
@@ -65,21 +120,23 @@ app.get('/api/firebase-config', (_req, res) => {
 app.post('/api/translate', async (req, res) => {
   const { text, provider: clientProvider, from = 'en', to = 'de', deeplKey: clientDeeplKey, googleKey: clientGoogleKey } = req.body;
   if (!text || !text.trim()) return res.status(400).json({ error: 'No text provided' });
+  if (rateLimited(`translate:${clientIp(req)}`)) {
+    return res.status(429).json({ error: 'Too many translation requests — please slow down.' });
+  }
 
   const fromLang = from.toLowerCase();
   const toLang   = to.toLowerCase();
 
   const serverDeeplKey = process.env.DEEPL_KEY || '';
-  const allowedCodes   = (process.env.DEEPL_CODES || 'fineanmol').split(',').map(c => c.trim().toLowerCase());
 
+  // Prefer a real user-supplied DeepL key; otherwise fall back to the
+  // server's own key. (No access-code scheme — that exposed a shared key.)
   let activeDeeplKey = '';
-  if (clientDeeplKey) {
-    const trimmed = clientDeeplKey.trim();
-    if (allowedCodes.includes(trimmed.toLowerCase())) {
-      activeDeeplKey = serverDeeplKey;
-    } else if (trimmed.includes('-') || trimmed.length > 20) {
-      activeDeeplKey = trimmed;
-    }
+  const clientKeyTrimmed = (clientDeeplKey || '').trim();
+  if (clientKeyTrimmed && (clientKeyTrimmed.includes('-') || clientKeyTrimmed.length > 20)) {
+    activeDeeplKey = clientKeyTrimmed;
+  } else if (serverDeeplKey) {
+    activeDeeplKey = serverDeeplKey;
   }
 
   const googleKey = process.env.GOOGLE_KEY || '';
@@ -191,19 +248,38 @@ app.post('/api/synonyms', async (req, res) => {
   }
 });
 
-// ── Gemini proxy ──────────────────────────────────────────────
+// ── Gemini proxy (free trial — server holds the key) ──────────
+// Auth: requires a valid Firebase ID token. Meters a per-user free
+// trial and rate-limits. No client-side key or access code involved.
 app.post('/api/gemini', async (req, res) => {
-  const { prompt, responseJson = false, geminiCode } = req.body;
+  const { prompt, responseJson = false } = req.body;
 
   const serverGeminiKey = process.env.GEMINI_KEY || process.env.GOOGLE_KEY || '';
-  const allowedCodes    = (process.env.DEEPL_CODES || 'fineanmol').split(',').map(c => c.trim().toLowerCase());
-
-  if (!geminiCode || !allowedCodes.includes(geminiCode.trim().toLowerCase())) {
-    return res.status(401).json({ error: 'Unauthorized: Invalid access code' });
+  if (!serverGeminiKey) {
+    return res.status(503).json({ error: 'AI is temporarily unavailable (server key not configured).' });
+  }
+  if (!prompt || !prompt.trim()) {
+    return res.status(400).json({ error: 'No prompt provided' });
   }
 
-  if (!serverGeminiKey) {
-    return res.status(503).json({ error: 'Service Unavailable: Server Gemini API key not configured' });
+  // Identify the caller.
+  const user = await verifyIdToken(req.headers.authorization);
+  if (!user) {
+    return res.status(401).json({ error: 'Please sign in to use the free AI trial.' });
+  }
+
+  // Rate limit (per-uid).
+  if (rateLimited(`gemini:${user.uid}`)) {
+    return res.status(429).json({ error: 'Too many requests — slow down a moment and try again.' });
+  }
+
+  // Meter the free trial per-uid.
+  const used = _trialUsed.get(user.uid) || 0;
+  if (used >= TRIAL_LIMIT) {
+    return res.status(429).json({
+      error: 'TRIAL_EXHAUSTED',
+      detail: `You've used all ${TRIAL_LIMIT} free AI trials. Add your own Gemini key in Settings for unlimited use.`,
+    });
   }
 
   try {
@@ -230,6 +306,9 @@ app.post('/api/gemini', async (req, res) => {
     }
 
     const data = await r.json();
+    // Count the trial only on a successful generation.
+    _trialUsed.set(user.uid, used + 1);
+    res.set('X-Trial-Remaining', String(Math.max(0, TRIAL_LIMIT - (used + 1))));
     res.json(data);
   } catch (e) {
     console.error('Gemini proxy failed:', e.message);
@@ -239,9 +318,9 @@ app.post('/api/gemini', async (req, res) => {
 
 // ── Start ─────────────────────────────────────────────────────
 app.listen(PORT, () => {
-  const d = process.env.DEEPL_KEY  ? '✅ DeepL (code-auth active)' : '❌ DeepL (no key)';
+  const d = process.env.DEEPL_KEY  ? '✅ DeepL'                     : '❌ DeepL (no key)';
   const g = process.env.GOOGLE_KEY ? '✅ Google'                   : '❌ Google (no key)';
-  const gemini = (process.env.GEMINI_KEY || process.env.GOOGLE_KEY) ? '✅ Gemini (code-auth active)' : '❌ Gemini (no key)';
+  const gemini = (process.env.GEMINI_KEY || process.env.GOOGLE_KEY) ? '✅ Gemini (token-auth trial)' : '❌ Gemini (no key)';
   const f = process.env.FIREBASE_PROJECT_ID ? '✅ Firebase'        : '❌ Firebase (not configured)';
   console.log(`
 ╔══════════════════════════════════════╗

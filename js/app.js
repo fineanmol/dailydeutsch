@@ -94,25 +94,34 @@ const App = (() => {
   const cleanJsonString = (s) => GeminiClient.cleanJsonString(s);
 
   // ── Trial AI System ───────────────────────────────────────────
+  // The trial is now metered SERVER-SIDE (per authenticated user) in the
+  // /api/gemini proxy — no key or counter ships to the browser. The values
+  // below are only a UI mirror, kept in sync from the proxy's
+  // `X-Trial-Remaining` response header. The server is the source of truth.
   const TRIAL_LIMIT = 3;
-  const getTrialKey = () => GeminiClient.getTrialKey();
+  let _trialRemainingMirror = null;   // null = unknown until first call
 
   function getTrialUsedCount() {
     if (getGeminiKey()) return 0;
-    const stats = DB.getStats();
-    return stats.trialUsed || 0;
+    if (_trialRemainingMirror == null) return 0;
+    return Math.max(0, TRIAL_LIMIT - _trialRemainingMirror);
   }
 
-  function incrementTrialUsedCount() {
-    const stats = DB.getStats();
-    stats.trialUsed = (stats.trialUsed || 0) + 1;
-    DB.saveStats(stats);
-    updateTrialBadges();
+  function getTrialRemaining() {
+    if (getGeminiKey()) return Infinity;
+    return _trialRemainingMirror == null ? TRIAL_LIMIT : _trialRemainingMirror;
+  }
+
+  function setTrialRemaining(n) {
+    if (typeof n === 'number' && !Number.isNaN(n)) {
+      _trialRemainingMirror = Math.max(0, n);
+      updateTrialBadges();
+    }
   }
 
   function hasTrialRemaining() {
     if (getGeminiKey()) return true;
-    return getTrialUsedCount() < TRIAL_LIMIT;
+    return getTrialRemaining() > 0;
   }
 
   function updateTrialBadges() {
@@ -183,7 +192,7 @@ const App = (() => {
           <button class="btn btn-primary w-full" id="waitlist-submit" onclick="App.submitProInterest()" style="justify-content: center; display: flex; padding: 12px;">
             Yes, I'm interested! 🚀
           </button>
-          <button class="btn btn-ghost w-full" onclick="const overlay = document.getElementById('ai-modal-overlay'); if (overlay) overlay.remove();" style="justify-content: center; display: flex;">
+          <button class="btn btn-ghost w-full" onclick="App.closeModal()" style="justify-content: center; display: flex;">
             Not right now
           </button>
         </div>
@@ -255,7 +264,7 @@ const App = (() => {
         <div style="text-align: center; line-height: 1.5; padding: 10px;">
           <p style="margin-bottom: 1.25rem;">We have saved your email: <strong>${escHtml(email)}</strong>. We will let you know as soon as the Pro options are available!</p>
           <p style="margin-bottom: 1.5rem; color: var(--text-muted); font-size: 0.88rem;">In the meantime, you can easily connect your own free API key under Settings to unlock unlimited AI features right away.</p>
-          <button class="btn btn-primary w-full" onclick="const overlay = document.getElementById('ai-modal-overlay'); if (overlay) overlay.remove();">Close</button>
+          <button class="btn btn-primary w-full" onclick="App.closeModal()">Close</button>
         </div>
       `);
     } catch (e) {
@@ -270,20 +279,29 @@ const App = (() => {
 
   async function callGemini(prompt, json = false) {
     const customKey = getGeminiKey();
+    // User's own key → direct call, unlimited, no trial accounting.
     if (customKey) {
       return GeminiClient.callGemini(prompt, json, customKey);
     }
-    
+
+    // Free trial → server proxy. The server meters per-user and returns
+    // 429/TRIAL_EXHAUSTED when the allowance is spent.
     if (!hasTrialRemaining()) {
       showProInterestModal();
       throw new Error("TRIAL_EXHAUSTED");
     }
-    
+
     try {
-      const res = await GeminiClient.callGemini(prompt, json, getTrialKey());
-      incrementTrialUsedCount();
+      const res = await GeminiClient.callGemini(prompt, json);
+      // Sync the UI badge from the server's authoritative remaining count.
+      setTrialRemaining(GeminiClient.getLastTrialRemaining());
       return res;
     } catch (err) {
+      if (err && err.code === "TRIAL_EXHAUSTED") {
+        setTrialRemaining(0);
+        showProInterestModal();
+        throw new Error("TRIAL_EXHAUSTED");
+      }
       console.error("[App] Trial callGemini error:", err);
       throw err;
     }
@@ -311,8 +329,6 @@ const App = (() => {
   }
 
   function updateSettingsStatusBadges(serverStatus) {
-    const allowedCodes = ['fineanmol'];
-
     // Get locally saved keys
     const s = Translator.loadSettings();
     const deeplKey = s.deeplKey || '';
@@ -343,14 +359,10 @@ const App = (() => {
 
     // 1. DeepL
     if (deeplKey) {
-      const trimmed = deeplKey.toLowerCase().trim();
-      if (allowedCodes.includes(trimmed)) {
-        const hasServer = serverStatus && serverStatus.hasDeeplKey;
-        setStatus(deeplEl, hasServer ? 'Code Applied' : 'Code Applied (No server key)', hasServer ? 'active' : 'warning');
-      } else if (deeplKey.includes('-') || deeplKey.length > 20) {
+      if (deeplKey.includes('-') || deeplKey.length > 20) {
         setStatus(deeplEl, 'Key Active', 'active');
       } else {
-        setStatus(deeplEl, 'Invalid Key/Code', 'danger');
+        setStatus(deeplEl, 'Invalid Key', 'danger');
       }
     } else {
       const hasServer = serverStatus && serverStatus.hasDeeplKey;
@@ -359,32 +371,26 @@ const App = (() => {
 
     // 2. Google Translate
     if (googleKey) {
-      const trimmed = googleKey.toLowerCase().trim();
-      if (allowedCodes.includes(trimmed)) {
-        const hasServer = serverStatus && serverStatus.hasGoogleKey;
-        setStatus(googleEl, hasServer ? 'Code Applied' : 'Code Applied (No server key)', hasServer ? 'active' : 'warning');
-      } else if (googleKey.startsWith('AIzaSy') || googleKey.length > 10) {
+      if (googleKey.startsWith('AIzaSy') || googleKey.length > 10) {
         setStatus(googleEl, 'Key Active', 'active');
       } else {
-        setStatus(googleEl, 'Invalid Key/Code', 'danger');
+        setStatus(googleEl, 'Invalid Key', 'danger');
       }
     } else {
       const hasServer = serverStatus && serverStatus.hasGoogleKey;
       setStatus(googleEl, hasServer ? 'Active (Server)' : '—', hasServer ? 'active' : null);
     }
 
-    // 3. Gemini
+    // 3. Gemini — your own key unlocks unlimited; otherwise the free trial
+    //    runs through the server proxy.
     if (geminiKey) {
-      const trimmed = geminiKey.toLowerCase().trim();
-      if (allowedCodes.includes(trimmed)) {
-        setBadge(geminiBadge, 'Code Applied', 'active');
-      } else if (geminiKey.startsWith('AIzaSy') || geminiKey.length > 10) {
+      if (geminiKey.startsWith('AIzaSy') || geminiKey.length > 10) {
         setBadge(geminiBadge, 'Key Active', 'active');
       } else {
         setBadge(geminiBadge, 'Invalid Key', 'danger');
       }
     } else {
-      setBadge(geminiBadge, 'Disabled', 'disabled');
+      setBadge(geminiBadge, 'Free Trial', 'disabled');
     }
 
     // 4. Translation API provider badge (navbar)
@@ -1103,16 +1109,28 @@ const App = (() => {
   function setResultError(detail) {
     const resultArea = document.getElementById('result-area');
     if (!resultArea) return;
-    const msg = detail ? `: ${detail}` : '';
+    const offline = (typeof navigator !== 'undefined' && navigator.onLine === false);
+    const headline = offline ? "⚠ You're offline" : '⚠ Translation failed';
+    const msg = (!offline && detail) ? `: ${escHtml(detail)}` : '';
+    const hint = offline
+      ? 'Reconnect to the internet and try again. Saved words are still available.'
+      : (Translator.isServer
+          ? 'The translation service returned an error. Please try again in a moment.'
+          : 'Open as <strong>http://localhost:3000</strong> (not as a file) to fix CORS issues.');
     resultArea.innerHTML = `
       <div class="result-text result-empty">
-        <span style="color:var(--accent-red)">⚠ Translation failed${msg}</span>
-        <div style="margin-top:8px;font-size:0.8rem;color:var(--text-muted)">
-          ${Translator.isServer
-            ? 'The server returned an error. Check the terminal for details.'
-            : 'Open as <strong>http://localhost:3000</strong> (not as a file) to fix CORS issues.'}
-        </div>
+        <span style="color:var(--accent-red)">${headline}${msg}</span>
+        <div style="margin-top:8px;font-size:0.8rem;color:var(--text-muted)">${hint}</div>
+        <button class="btn btn-secondary" style="margin-top:12px;" onclick="App.retryTranslate()">↻ Try again</button>
       </div>`;
+  }
+
+  // Re-run the current translation (used by the error-state "Try again" button).
+  function retryTranslate() {
+    const input = document.getElementById('translate-input');
+    if (input && input.value.trim()) {
+      doTranslate(true);
+    }
   }
 
   async function fetchAndAttachWordMetadata(wordId, german, english) {
@@ -2871,9 +2889,43 @@ Do not include any markdown formatting wrappers (like \`\`\`json). Just return t
     }
   }
 
+  let _userMenuOutsideHandler = null;
   function toggleUserMenu() {
     const dd = document.getElementById('user-dropdown');
-    if (dd) dd.classList.toggle('hidden');
+    const avatar = document.getElementById('nav-avatar');
+    if (!dd) return;
+    const open = dd.classList.toggle('hidden') === false;
+    if (avatar) avatar.setAttribute('aria-expanded', String(open));
+
+    // Close on outside click or Escape while open.
+    if (open) {
+      _userMenuOutsideHandler = (e) => {
+        if (e.type === 'keydown' && e.key !== 'Escape') return;
+        if (e.type === 'click' && (dd.contains(e.target) || (avatar && avatar.contains(e.target)))) return;
+        closeUserMenu();
+      };
+      setTimeout(() => {
+        document.addEventListener('click', _userMenuOutsideHandler, true);
+        document.addEventListener('keydown', _userMenuOutsideHandler, true);
+      }, 0);
+    } else {
+      closeUserMenu();
+    }
+  }
+
+  function closeUserMenu() {
+    const dd = document.getElementById('user-dropdown');
+    const avatar = document.getElementById('nav-avatar');
+    if (dd) dd.classList.add('hidden');
+    if (avatar) {
+      avatar.setAttribute('aria-expanded', 'false');
+      if (document.activeElement && dd && dd.contains(document.activeElement)) avatar.focus();
+    }
+    if (_userMenuOutsideHandler) {
+      document.removeEventListener('click', _userMenuOutsideHandler, true);
+      document.removeEventListener('keydown', _userMenuOutsideHandler, true);
+      _userMenuOutsideHandler = null;
+    }
   }
 
   // ── Login screen helpers ──────────────────────────────────────
@@ -2899,25 +2951,54 @@ Do not include any markdown formatting wrappers (like \`\`\`json). Just return t
 
   // ── AI Explanation Modal & Navigation ─────────────────────────
   function showModal(title, contentHtml) {
-    document.getElementById('dd-custom-modal')?.remove();
+    closeModal();
+    const previouslyFocused = document.activeElement;
     const modal = document.createElement('div');
     modal.id = 'dd-custom-modal';
     modal.className = 'dd-modal-overlay';
     modal.innerHTML = `
-      <div class="dd-modal-card">
+      <div class="dd-modal-card" role="dialog" aria-modal="true" aria-label="${escHtml(title)}">
         <div class="dd-modal-header">
-          <div class="dd-modal-title">${escHtml(title)}</div>
-          <button class="dd-modal-close" onclick="document.getElementById('dd-custom-modal').remove()">✕</button>
+          <h2 class="dd-modal-title">${escHtml(title)}</h2>
+          <button class="dd-modal-close" aria-label="Close" data-modal-close>✕</button>
         </div>
         <div class="dd-modal-body">
           ${contentHtml}
         </div>
       </div>`;
+
+    const FOCUSABLE = 'a[href],button:not([disabled]),textarea,input:not([disabled]),select,[tabindex]:not([tabindex="-1"])';
+
+    function onKeydown(e) {
+      if (e.key === 'Escape') { e.preventDefault(); closeModal(); return; }
+      if (e.key !== 'Tab') return;
+      const f = Array.from(modal.querySelectorAll(FOCUSABLE)).filter(el => el.offsetParent !== null);
+      if (!f.length) { e.preventDefault(); return; }
+      const first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+
+    modal._cleanup = () => {
+      document.removeEventListener('keydown', onKeydown, true);
+      if (previouslyFocused && typeof previouslyFocused.focus === 'function') previouslyFocused.focus();
+    };
+
     document.body.appendChild(modal);
-    // Add click handler to close when clicking overlay
-    modal.addEventListener('click', e => {
-      if (e.target === modal) modal.remove();
-    });
+    modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+    modal.querySelector('[data-modal-close]').addEventListener('click', closeModal);
+    document.addEventListener('keydown', onKeydown, true);
+
+    // Move focus into the dialog.
+    const initial = modal.querySelector(FOCUSABLE) || modal.querySelector('[data-modal-close]');
+    if (initial) initial.focus();
+  }
+
+  function closeModal() {
+    const modal = document.getElementById('dd-custom-modal');
+    if (!modal) return;
+    if (typeof modal._cleanup === 'function') modal._cleanup();
+    modal.remove();
   }
 
   async function explainMistake(context, correct, wrong) {
@@ -3569,7 +3650,7 @@ Do not include any markdown formatting wrappers (like \`\`\`json). Just return t
     deleteWord, practiceWord, loadFromHistory,
     selectSynonym, resetToOriginal,
     toggleLevelVariations, useLevelVariant,
-    showCEFRInfo, showToast,
+    showCEFRInfo, showToast, closeModal, retryTranslate,
     // Backend settings page
     savePageSettings, updateFirebasePreview,
     saveGoalsSettings, savePreferencesSettings,

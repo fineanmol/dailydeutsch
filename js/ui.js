@@ -61,7 +61,13 @@ const UI = (() => {
     const ICONS = { success: '✅', error: '❌', info: '💡' };
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
-    toast.innerHTML = `<span>${ICONS[type] || '💡'}</span><span>${message}</span>`;
+    toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
+    // Build with textContent so a message containing user data can't inject markup.
+    const icon = document.createElement('span');
+    icon.textContent = ICONS[type] || '💡';
+    const msg = document.createElement('span');
+    msg.textContent = message;
+    toast.append(icon, msg);
     container.appendChild(toast);
 
     if (window.Motion) {
@@ -86,6 +92,9 @@ const UI = (() => {
     const existing = document.getElementById('ai-modal-overlay');
     if (existing) existing.remove();
 
+    // Remember what had focus so we can restore it on close (a11y).
+    const previouslyFocused = document.activeElement;
+
     const overlay = document.createElement('div');
     overlay.id = 'ai-modal-overlay';
     overlay.className = 'modal-overlay';
@@ -93,8 +102,8 @@ const UI = (() => {
       <div class="modal-card" role="dialog" aria-modal="true" aria-label="${escHtml(title)}">
         <div class="modal-header">
           <h2 class="modal-title">${escHtml(title)}</h2>
-          <button class="btn btn-ghost btn-icon modal-close-btn" aria-label="Close" onclick="document.getElementById('ai-modal-overlay').remove()">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <button class="btn btn-ghost btn-icon modal-close-btn" aria-label="Close" data-modal-close>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
           </button>
@@ -103,11 +112,45 @@ const UI = (() => {
       </div>
     `;
 
-    overlay.addEventListener('click', e => {
-      if (e.target === overlay) overlay.remove();
-    });
+    const FOCUSABLE = 'a[href],button:not([disabled]),textarea,input,select,[tabindex]:not([tabindex="-1"])';
+
+    function close() {
+      document.removeEventListener('keydown', onKeydown, true);
+      overlay.remove();
+      // Restore focus to the trigger element.
+      if (previouslyFocused && typeof previouslyFocused.focus === 'function') {
+        previouslyFocused.focus();
+      }
+    }
+
+    function onKeydown(e) {
+      if (e.key === 'Escape') { e.preventDefault(); close(); return; }
+      if (e.key !== 'Tab') return;
+      // Trap Tab focus inside the modal.
+      const focusables = Array.from(overlay.querySelectorAll(FOCUSABLE))
+        .filter(el => el.offsetParent !== null || el === document.activeElement);
+      if (focusables.length === 0) { e.preventDefault(); return; }
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault(); last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault(); first.focus();
+      }
+    }
+
+    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+    overlay.querySelector('[data-modal-close]').addEventListener('click', close);
+    document.addEventListener('keydown', onKeydown, true);
 
     document.body.appendChild(overlay);
+
+    // Move focus into the dialog (first focusable, else the close button).
+    const initial = overlay.querySelector(FOCUSABLE) || overlay.querySelector('[data-modal-close]');
+    if (initial) initial.focus();
+
+    // Expose a programmatic close for inline handlers that used to call .remove().
+    overlay._close = close;
 
     if (window.Motion) {
       window.Motion.animate(overlay.querySelector('.modal-card'),

@@ -91,44 +91,57 @@ const DB = (() => {
     }
   }
 
-  // ── One-time localStorage → Firestore migration ────────────────
+  // ── localStorage → Firestore reconciliation ───────────────────
+  // Runs on every login. Migrates ANY words/history still sitting in
+  // localStorage (e.g. added offline after a previous migration), then
+  // clears the local copies — but ONLY after a confirmed commit, so a
+  // failed/aborted sync never loses data (it just retries next login).
+  //
+  // The old one-way `dd_migrated_v1` flag is intentionally gone: it was
+  // the source of the data-loss race (words added offline after the first
+  // migration were stranded forever). Word docs use stable ids, so a
+  // re-run is an idempotent overwrite, not a duplicate.
   async function _migrateLocalStorageIfNeeded() {
-    if (localStorage.getItem(LS_MIGRATED)) return;
-
     let oldWords = [], oldHistory = [], oldStats = null;
     try { oldWords   = JSON.parse(localStorage.getItem(LS_WORDS))   || []; } catch {}
     try { oldHistory = JSON.parse(localStorage.getItem(LS_HISTORY)) || []; } catch {}
     try { oldStats   = JSON.parse(localStorage.getItem(LS_STATS)); }         catch {}
 
-    if (oldWords.length === 0 && oldHistory.length === 0) {
-      localStorage.setItem(LS_MIGRATED, '1');
-      return;
-    }
+    // Retire the legacy flag if present — it no longer gates anything.
+    if (localStorage.getItem(LS_MIGRATED)) localStorage.removeItem(LS_MIGRATED);
 
-    console.log(`[DB] Migrating ${oldWords.length} words to Firestore…`);
+    if (oldWords.length === 0 && oldHistory.length === 0 && !oldStats) return;
+
+    console.log(`[DB] Reconciling ${oldWords.length} local words → Firestore…`);
     try {
       const db = firebase.firestore();
       const batch = db.batch();
 
       oldWords.forEach(w => {
-        batch.set(db.doc(`users/${_uid}/words/${w.id}`), w);
+        if (w && w.id) batch.set(db.doc(`users/${_uid}/words/${w.id}`), w);
       });
       oldHistory.forEach((h, i) => {
-        const id = ((h.english || `h${i}`).toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 40)) + `_${i}`;
+        // Stable id derived from content + timestamp (not array index), so
+        // re-runs don't create duplicate history entries.
+        const stamp = String(h.at || i);
+        const id = ((h.english || `h${i}`).toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 40)) + '_' + stamp.slice(-8);
         batch.set(db.doc(`users/${_uid}/history/${id}`), h);
       });
+      // Only seed stats if the user has none server-side yet, so we never
+      // stomp on cloud progress with a stale local copy.
       if (oldStats) {
-        batch.set(db.doc(`users/${_uid}/meta/stats`), oldStats);
+        const existing = await db.doc(`users/${_uid}/meta/stats`).get();
+        if (!existing.exists) batch.set(db.doc(`users/${_uid}/meta/stats`), oldStats);
       }
 
-      await batch.commit();
-      localStorage.setItem(LS_MIGRATED, '1');
+      await batch.commit();           // <-- only clear local AFTER success
       localStorage.removeItem(LS_WORDS);
       localStorage.removeItem(LS_HISTORY);
       localStorage.removeItem(LS_STATS);
-      console.log('[DB] Migration complete ✓');
+      console.log('[DB] Reconciliation complete ✓');
     } catch (e) {
-      console.error('[DB] Migration failed:', e);
+      // Leave localStorage intact so the next login retries cleanly.
+      console.error('[DB] Reconciliation failed (will retry next login):', e);
     }
   }
 
@@ -210,6 +223,31 @@ const DB = (() => {
     }
   }
 
+  // Atomically add `delta` to a numeric stat field. Uses Firestore's
+  // server-side FieldValue.increment so concurrent tabs/devices don't
+  // clobber each other (fixes the read-modify-write race on XP). The
+  // in-memory mirror is updated optimistically; the snapshot/refetch
+  // reconciles the authoritative value.
+  function incrementStat(field, delta) {
+    if (!field || !delta) return;
+    if (!_stats) _stats = _defaultStats();
+    _stats[field] = (_stats[field] || 0) + delta;   // optimistic local mirror
+
+    if (_uid) {
+      firebase.firestore()
+        .doc(`users/${_uid}/meta/stats`)
+        .set({ [field]: firebase.firestore.FieldValue.increment(delta) }, { merge: true })
+        .then(() => {
+          if (typeof Leaderboard !== 'undefined') {
+            Leaderboard.syncProfile(_uid, _stats);
+          }
+        })
+        .catch(e => console.error('[DB] incrementStat:', e.message));
+    } else {
+      try { localStorage.setItem(LS_STATS, JSON.stringify(_stats)); } catch {}
+    }
+  }
+
   // ── Cleanup ───────────────────────────────────────────────────
   function cleanup() {
     if (_unsubWords) { _unsubWords(); _unsubWords = null; }
@@ -237,6 +275,6 @@ const DB = (() => {
       .catch(e => console.error('[DB] saveUserSettings:', e.message));
   }
 
-  return { init, cleanup, getWords, saveWord, deleteWord, getHistory, addHistory, getStats, saveStats, getUserSettings, saveUserSettings };
+  return { init, cleanup, getWords, saveWord, deleteWord, getHistory, addHistory, getStats, saveStats, incrementStat, getUserSettings, saveUserSettings };
 
 })();

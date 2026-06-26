@@ -7,10 +7,10 @@
   <title>Daily Deutsch: Build Your German Vocabulary</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="css/style.css?v=1.2.20" />
+  <link rel="stylesheet" href="css/style.css?v=1.2.21" />
   <link rel="manifest" href="manifest.json" />
-  <link rel="icon" type="image/png" href="icon.png?v=1.2.20" />
-  <link rel="apple-touch-icon" href="icon.png?v=1.2.20" />
+  <link rel="icon" type="image/png" href="icon.png?v=1.2.21" />
+  <link rel="apple-touch-icon" href="icon.png?v=1.2.21" />
   <script>
     (function() {
       const theme = localStorage.getItem('dd_theme') || 'system';
@@ -23,13 +23,15 @@
 </head>
 <body class="light-mode">
 
+<a href="#main-content" class="skip-link">Skip to main content</a>
+
 <div id="app">
 
 <!-- ── Login Screen ── -->
 <div id="login-screen" class="login-screen">
   <div class="login-card">
     <div class="login-logo">
-      <div class="login-logo-icon"><img src="icon.png?v=1.2.18" alt="Daily Deutsch Logo"></div>
+      <div class="login-logo-icon"><img src="icon.png?v=1.2.21" alt="Daily Deutsch Logo"></div>
       <span class="login-logo-text">Daily <span>Deutsch</span></span>
     </div>
     <p class="login-tagline">Build your German vocabulary,<br>one word at a time.</p>
@@ -188,7 +190,7 @@
 
       <!-- Logo -->
       <a href="#" class="logo" onclick="return false;">
-        <div class="logo-icon"><img src="icon.png?v=1.2.18" alt="Daily Deutsch Logo"></div>
+        <div class="logo-icon"><img src="icon.png?v=1.2.21" alt="Daily Deutsch Logo"></div>
         <span class="logo-text">Daily <span>Deutsch</span></span>
       </a>
 
@@ -264,11 +266,11 @@
         </button>
         <!-- User avatar + dropdown -->
         <div class="nav-user" id="nav-user">
-          <div class="nav-avatar" id="nav-avatar" onclick="App.toggleUserMenu()" title="Account" role="button" aria-label="User menu">
+          <div class="nav-avatar" id="nav-avatar" onclick="App.toggleUserMenu()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();App.toggleUserMenu();}" title="Account" role="button" tabindex="0" aria-label="User menu" aria-haspopup="true" aria-expanded="false" aria-controls="user-dropdown">
             <span id="nav-avatar-initial">?</span>
             <img id="nav-avatar-img" src="" alt="" style="display:none" />
           </div>
-          <div class="nav-user-dropdown hidden" id="user-dropdown">
+          <div class="nav-user-dropdown hidden" id="user-dropdown" role="menu">
             <div class="nav-user-info">
               <div class="nav-user-name" id="user-dropdown-name">–</div>
               <div class="nav-user-email" id="user-dropdown-email"></div>
@@ -705,7 +707,8 @@
 
           <div class="auditor-area" style="margin-top: var(--space-md);">
             <div class="auditor-textarea-wrap">
-              <textarea class="auditor-textarea" id="auditor-input" placeholder="e.g., Ich gehen gestern nach Hause (I went home yesterday)"></textarea>
+              <label for="auditor-input" class="sr-only">German sentence to check</label>
+              <textarea class="auditor-textarea" id="auditor-input" aria-label="German sentence to check" placeholder="e.g., Ich gehen gestern nach Hause (I went home yesterday)"></textarea>
             </div>
             
             <div style="display: flex; gap: 10px;">
@@ -1255,26 +1258,26 @@
   firebase.analytics();
 </script>
 
-<script src="js/analytics.js?v=1.2.20"></script>
+<script src="js/analytics.js?v=1.2.21"></script>
 
 <!-- Scripts (load order: Firebase globals must come first) -->
-<script src="js/motion.js?v=1.2.20"></script>
-<script src="js/auth.js?v=1.2.20"></script>
-<script src="js/db.js?v=1.2.20"></script>
-<script src="js/categories.js?v=1.2.20"></script>
-<script src="js/wordbank.js?v=1.2.20"></script>
-<script src="js/cefr.js?v=1.2.20"></script>
-<script src="js/translator.js?v=1.2.20"></script>
-<script src="js/exercises.js?v=1.2.20"></script>
-<script src="js/leaderboard.js?v=1.2.20"></script>
-<script src="js/insights.js?v=1.2.20"></script>
+<script src="js/motion.js?v=1.2.21"></script>
+<script src="js/auth.js?v=1.2.21"></script>
+<script src="js/db.js?v=1.2.21"></script>
+<script src="js/categories.js?v=1.2.21"></script>
+<script src="js/wordbank.js?v=1.2.21"></script>
+<script src="js/cefr.js?v=1.2.21"></script>
+<script src="js/translator.js?v=1.2.21"></script>
+<script src="js/exercises.js?v=1.2.21"></script>
+<script src="js/leaderboard.js?v=1.2.21"></script>
+<script src="js/insights.js?v=1.2.21"></script>
 <!-- Standalone modules (no cross-dependencies) -->
-<script src="js/profile.js?v=1.2.20"></script>
-<script src="js/language.js?v=1.2.20"></script>
-<script src="js/gemini.js?v=1.2.20"></script>
-<script src="js/ui.js?v=1.2.20"></script>
+<script src="js/profile.js?v=1.2.21"></script>
+<script src="js/language.js?v=1.2.21"></script>
+<script src="js/gemini.js?v=1.2.21"></script>
+<script src="js/ui.js?v=1.2.21"></script>
 <!-- App orchestrator (depends on all modules above) -->
-<script src="js/app.js?v=1.2.20"></script>
+<script src="js/app.js?v=1.2.21"></script>
 <script>
   function togglePasswordVisibility(inputId) {
     const el = document.getElementById(inputId);

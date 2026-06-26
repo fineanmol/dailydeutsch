@@ -69,6 +69,13 @@ const Auth = (() => {
   function getPhotoURL()    { return (_user && _user.photoURL) ? _user.photoURL : null; }
   function getEmail()       { return (_user && _user.email) ? _user.email : null; }
 
+  // Returns a fresh Firebase ID token for the current user, or null.
+  // Used to authenticate calls to the server AI proxy.
+  function getIdToken() {
+    if (!_user) return Promise.resolve(null);
+    return _user.getIdToken().catch(() => null);
+  }
+
   return {
     init,
     signInWithGoogle,
@@ -77,7 +84,7 @@ const Auth = (() => {
     upgradeGuestToGoogle,
     onAuthChange,
     getUser, getUid, isGuest, isLoggedIn,
-    getDisplayName, getPhotoURL, getEmail,
+    getDisplayName, getPhotoURL, getEmail, getIdToken,
   };
 
 })();

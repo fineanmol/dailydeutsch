@@ -195,15 +195,14 @@ const WordBank = (() => {
 
   // ── Gamification ──────────────────────────────────────────────
   function awardXP(amount) {
-    const stats = DB.getStats();
-    const oldXp = stats.xp || 0;
+    const oldXp = DB.getStats().xp || 0;
     const newXp = oldXp + amount;
-    stats.xp = newXp;
 
     const oldLevel = Math.floor(Math.sqrt(oldXp / 100)) + 1;
     const newLevel = Math.floor(Math.sqrt(newXp / 100)) + 1;
 
-    DB.saveStats(stats);
+    // Atomic, race-free increment (server-side FieldValue.increment).
+    DB.incrementStat('xp', amount);
 
     if (newLevel > oldLevel) {
       if (typeof Analytics !== 'undefined') {

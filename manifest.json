@@ -3,15 +3,17 @@
   "short_name": "Daily Deutsch",
   "description": "Track the German words you use every day. Save translations, learn component vocabulary, and practise with smart exercises.",
   "start_url": "/index.html",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#0ebeff",
-  "orientation": "portrait-primary",
+  "orientation": "any",
+  "categories": ["education", "productivity"],
+  "lang": "en",
   "icons": [
-    {
-      "src": "icon.png",
-      "sizes": "1024x1024",
-      "type": "image/png"
-    }
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon.png", "sizes": "1024x1024", "type": "image/png", "purpose": "any" }
   ]
 }

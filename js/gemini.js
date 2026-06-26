@@ -12,20 +12,17 @@ const GeminiClient = (() => {
   const MODEL_ID = "gemini-2.5-flash-lite";
   const API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
   const PROXY_PATH = "/api/gemini";
-  
-  // Obfuscated to bypass GitHub scanners. Decodes to: AIzaSyBXh2rO8NYZ6tvRVoExfFa7y25HzTCZOrY
-  const OBFUSCATED_TRIAL_KEY = "QUl6YVN5QlhoMnJPOU5YWjZ0dlJWb0V4ZkZhN3kyNUh6VENaT3JZ";
-  
-  function getTrialKey() {
-    try {
-      return atob(OBFUSCATED_TRIAL_KEY);
-    } catch (e) {
-      return "";
-    }
-  }
 
-  /** Access codes that route through server-side proxy */
-  const ALLOWED_CODES = ["fineanmol", "admin"];
+  // Mirror of the server's per-user trial allowance, parsed from the
+  // X-Trial-Remaining response header on the last proxy call. null = unknown.
+  let _lastTrialRemaining = null;
+  function getLastTrialRemaining() { return _lastTrialRemaining; }
+
+  // NOTE: No API key is shipped to the browser. The free "trial" runs entirely
+  // through the server proxy (/api/gemini), which holds the real key in an env
+  // var and meters usage per authenticated user. A user may optionally supply
+  // their own key in Settings — that key is used for direct browser→Gemini
+  // calls and never leaves their device.
 
   // ── Key Storage ───────────────────────────────────────────────
 
@@ -42,10 +39,6 @@ const GeminiClient = (() => {
     }
   }
 
-  function isAllowedCode(key) {
-    return ALLOWED_CODES.includes((key || "").trim().toLowerCase());
-  }
-
   // ── JSON Cleaning ─────────────────────────────────────────────
 
   function cleanJsonString(str) {
@@ -59,35 +52,67 @@ const GeminiClient = (() => {
   // ── Core Call ─────────────────────────────────────────────────
 
   /**
+   * Call Gemini. Two routes:
+   *   • User-supplied key  → direct browser→Gemini request (key stays on device)
+   *   • No key (free tier) → server proxy /api/gemini, which holds the real key
+   *                          and meters the trial per authenticated user.
+   *
    * @param {string}  prompt
    * @param {boolean} responseJson  - If true, parse response as JSON.
-   * @param {string}  [overrideKey] - Optional override key.
+   * @param {string}  [overrideKey] - Optional user key for a direct call.
    * @returns {Promise<string|object>}
    */
   async function callGemini(prompt, responseJson = false, overrideKey = null) {
     const key = overrideKey || getKey();
-    if (!key) throw new Error("Gemini API Key is missing. Add it in Settings.");
+    const isFileProtocol = window.location.protocol === "file:";
 
-    const useProxy = isAllowedCode(key) && window.location.protocol !== "file:";
-    const requestFn = useProxy
-      ? () => _proxyRequest(prompt, responseJson, key)
-      : () => _directRequest(prompt, responseJson, key);
+    // With a user key we can call Gemini directly (and offline-from-server too).
+    // Without a key we must go through the proxy; that requires a server.
+    if (!key && isFileProtocol) {
+      throw new Error(
+        "Free AI trial needs the app server. Add your own Gemini key in Settings to use AI here.",
+      );
+    }
+
+    const requestFn = key
+      ? () => _directRequest(prompt, responseJson, key)
+      : () => _proxyRequest(prompt, responseJson);
 
     return _callWithRetry(requestFn, responseJson);
   }
 
-  // ── Internal: Proxy ───────────────────────────────────────────
+  // ── Internal: Proxy (free trial — server holds the key) ───────
 
-  async function _proxyRequest(prompt, responseJson, code) {
+  async function _proxyRequest(prompt, responseJson) {
+    const headers = { "Content-Type": "application/json" };
+
+    // Attach the Firebase ID token so the server can identify the user,
+    // meter the trial per-uid, and rate-limit. Falls back gracefully if
+    // auth isn't ready (server still enforces its own limits).
+    let idToken = null;
+    if (typeof Auth !== "undefined" && Auth.getIdToken) {
+      try { idToken = await Auth.getIdToken(); } catch { /* ignore */ }
+    }
+    if (idToken) headers["Authorization"] = `Bearer ${idToken}`;
+
     const r = await fetch(PROXY_PATH, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt, responseJson, geminiCode: code }),
+      headers,
+      body: JSON.stringify({ prompt, responseJson }),
     });
     if (!r.ok) {
       const err = await r.json().catch(() => ({}));
+      // Surface the trial-exhausted signal so callers can show the upgrade modal.
+      if (r.status === 429 && (err?.error === "TRIAL_EXHAUSTED")) {
+        _lastTrialRemaining = 0;
+        const e = new Error(err?.detail || "TRIAL_EXHAUSTED");
+        e.code = "TRIAL_EXHAUSTED";
+        throw e;
+      }
       throw new Error(err?.error || `HTTP ${r.status}`);
     }
+    const remHeader = r.headers.get("X-Trial-Remaining");
+    if (remHeader != null) _lastTrialRemaining = Number(remHeader);
     const data = await r.json();
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!text) throw new Error("Empty response from Gemini");
@@ -160,12 +185,10 @@ const GeminiClient = (() => {
 
   return {
     MODEL_ID,
-    ALLOWED_CODES,
     getKey,
     saveKey,
-    isAllowedCode,
     cleanJsonString,
     callGemini,
-    getTrialKey,
+    getLastTrialRemaining,
   };
 })();
