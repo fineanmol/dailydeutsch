@@ -95,7 +95,7 @@ const App = (() => {
 
   // ── Trial AI System ───────────────────────────────────────────
   const TRIAL_LIMIT = 3;
-  const TRIAL_KEY = "AIzaSyCKz3VT8lYsQX6qLNooWu8KNyHhdsmR404";
+  const getTrialKey = () => GeminiClient.getTrialKey();
 
   function getTrialUsedCount() {
     if (getGeminiKey()) return 0;
@@ -280,7 +280,7 @@ const App = (() => {
     }
     
     try {
-      const res = await GeminiClient.callGemini(prompt, json, TRIAL_KEY);
+      const res = await GeminiClient.callGemini(prompt, json, getTrialKey());
       incrementTrialUsedCount();
       return res;
     } catch (err) {
