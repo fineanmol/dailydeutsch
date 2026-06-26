@@ -7,10 +7,10 @@
   <title>Daily Deutsch: Build Your German Vocabulary</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="css/style.css?v=1.2.18" />
+  <link rel="stylesheet" href="css/style.css?v=1.2.19" />
   <link rel="manifest" href="manifest.json" />
-  <link rel="icon" type="image/png" href="icon.png?v=1.2.18" />
-  <link rel="apple-touch-icon" href="icon.png?v=1.2.18" />
+  <link rel="icon" type="image/png" href="icon.png?v=1.2.19" />
+  <link rel="apple-touch-icon" href="icon.png?v=1.2.19" />
   <script>
     (function() {
       const theme = localStorage.getItem('dd_theme') || 'system';
@@ -714,7 +714,7 @@
                   <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"></path>
                   <path d="m9 12 2 2 4-4"></path>
                 </svg>
-                Audit Sentence
+                Audit Sentence <span class="trial-badge"></span>
               </button>
               <button class="btn btn-secondary" onclick="document.getElementById('auditor-input').value = ''; document.getElementById('auditor-results').innerHTML = '';" style="padding: 12px 18px;">
                 Clear
@@ -832,7 +832,7 @@
               Generate a custom German story utilizing words you've learned. Requires a Gemini API Key.
             </p>
             <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;" id="ai-story-actions">
-              <button class="btn btn-primary" onclick="App.generateAIStory()">✏️ Generate AI Story</button>
+              <button class="btn btn-primary" onclick="App.generateAIStory()">✏️ Generate AI Story <span class="trial-badge"></span></button>
               <button class="btn btn-secondary" id="story-demo-btn" onclick="App.runStoryDemo()">👁️ View Demo Story</button>
             </div>
           </div>
@@ -1255,26 +1255,26 @@
   firebase.analytics();
 </script>
 
-<script src="js/analytics.js?v=1.2.18"></script>
+<script src="js/analytics.js?v=1.2.19"></script>
 
 <!-- Scripts (load order: Firebase globals must come first) -->
-<script src="js/motion.js?v=1.2.18"></script>
-<script src="js/auth.js?v=1.2.18"></script>
-<script src="js/db.js?v=1.2.18"></script>
-<script src="js/categories.js?v=1.2.18"></script>
-<script src="js/wordbank.js?v=1.2.18"></script>
-<script src="js/cefr.js?v=1.2.18"></script>
-<script src="js/translator.js?v=1.2.18"></script>
-<script src="js/exercises.js?v=1.2.18"></script>
-<script src="js/leaderboard.js?v=1.2.18"></script>
-<script src="js/insights.js?v=1.2.18"></script>
+<script src="js/motion.js?v=1.2.19"></script>
+<script src="js/auth.js?v=1.2.19"></script>
+<script src="js/db.js?v=1.2.19"></script>
+<script src="js/categories.js?v=1.2.19"></script>
+<script src="js/wordbank.js?v=1.2.19"></script>
+<script src="js/cefr.js?v=1.2.19"></script>
+<script src="js/translator.js?v=1.2.19"></script>
+<script src="js/exercises.js?v=1.2.19"></script>
+<script src="js/leaderboard.js?v=1.2.19"></script>
+<script src="js/insights.js?v=1.2.19"></script>
 <!-- Standalone modules (no cross-dependencies) -->
-<script src="js/profile.js?v=1.2.18"></script>
-<script src="js/language.js?v=1.2.18"></script>
-<script src="js/gemini.js?v=1.2.18"></script>
-<script src="js/ui.js?v=1.2.18"></script>
+<script src="js/profile.js?v=1.2.19"></script>
+<script src="js/language.js?v=1.2.19"></script>
+<script src="js/gemini.js?v=1.2.19"></script>
+<script src="js/ui.js?v=1.2.19"></script>
 <!-- App orchestrator (depends on all modules above) -->
-<script src="js/app.js?v=1.2.18"></script>
+<script src="js/app.js?v=1.2.19"></script>
 <script>
   function togglePasswordVisibility(inputId) {
     const el = document.getElementById(inputId);

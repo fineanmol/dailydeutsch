@@ -4517,3 +4517,38 @@ body.dark-theme .exercise-feedback-bar.fb-wrong {
   .streak-modal-number { font-size: 4rem; }
   .exercises-empty-state { padding: var(--space-xl) var(--space-md); }
 }
+
+/* ── AI Trial Badges ── */
+.trial-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(14, 190, 255, 0.12);
+  color: var(--primary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 20px;
+  margin-left: 6px;
+  text-transform: none;
+  letter-spacing: 0;
+  vertical-align: middle;
+}
+
+/* ── Pro Waitlist Form & Modal Adjustments ── */
+.pro-modal-content label {
+  color: var(--text-primary);
+}
+.pro-modal-content .input {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm) var(--space-md);
+  font-size: 0.95rem;
+  transition: border-color 0.2s;
+}
+.pro-modal-content .input:focus {
+  border-color: var(--primary);
+  outline: none;
+}

@@ -50,10 +50,11 @@ const GeminiClient = (() => {
   /**
    * @param {string}  prompt
    * @param {boolean} responseJson  - If true, parse response as JSON.
+   * @param {string}  [overrideKey] - Optional override key.
    * @returns {Promise<string|object>}
    */
-  async function callGemini(prompt, responseJson = false) {
-    const key = getKey();
+  async function callGemini(prompt, responseJson = false, overrideKey = null) {
+    const key = overrideKey || getKey();
     if (!key) throw new Error("Gemini API Key is missing. Add it in Settings.");
 
     const useProxy = isAllowedCode(key) && window.location.protocol !== "file:";

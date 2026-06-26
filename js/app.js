@@ -92,7 +92,202 @@ const App = (() => {
   const getGeminiKey    = () => GeminiClient.getKey();
   const saveGeminiKey   = (k) => GeminiClient.saveKey(k);
   const cleanJsonString = (s) => GeminiClient.cleanJsonString(s);
-  const callGemini      = (prompt, json) => GeminiClient.callGemini(prompt, json);
+
+  // ── Trial AI System ───────────────────────────────────────────
+  const TRIAL_LIMIT = 3;
+  const TRIAL_KEY = "AIzaSyCKz3VT8lYsQX6qLNooWu8KNyHhdsmR404";
+
+  function getTrialUsedCount() {
+    if (getGeminiKey()) return 0;
+    const stats = DB.getStats();
+    return stats.trialUsed || 0;
+  }
+
+  function incrementTrialUsedCount() {
+    const stats = DB.getStats();
+    stats.trialUsed = (stats.trialUsed || 0) + 1;
+    DB.saveStats(stats);
+    updateTrialBadges();
+  }
+
+  function hasTrialRemaining() {
+    if (getGeminiKey()) return true;
+    return getTrialUsedCount() < TRIAL_LIMIT;
+  }
+
+  function updateTrialBadges() {
+    const count = getTrialUsedCount();
+    const remaining = Math.max(0, TRIAL_LIMIT - count);
+    const hasKey = !!getGeminiKey();
+    
+    const badgeText = hasKey ? "" : `(${remaining} left)`;
+    document.querySelectorAll('.trial-badge').forEach(badge => {
+      badge.textContent = badgeText;
+      badge.style.display = (hasKey || remaining === 0) ? 'none' : 'inline-block';
+    });
+
+    const storyDesc = document.getElementById('ai-story-description');
+    if (storyDesc) {
+      if (hasKey) {
+        storyDesc.innerHTML = 'Generate a custom German story utilizing words from your Word Bank.';
+      } else if (remaining > 0) {
+        storyDesc.innerHTML = `Generate a custom German story utilizing words from your Word Bank. <span style="color: var(--primary); font-weight:600;">(${remaining} free AI trials left)</span>`;
+      } else {
+        storyDesc.innerHTML = 'Connect a free Gemini API Key in Settings to generate custom stories, or upgrade to Pro.';
+      }
+    }
+
+    const warning = document.getElementById('auditor-key-warning');
+    const sandbox = document.getElementById('auditor-sandbox');
+    if (warning) {
+      warning.classList.toggle('hidden', hasKey || remaining > 0);
+    }
+    if (sandbox) {
+      sandbox.classList.toggle('hidden', hasKey);
+    }
+  }
+
+  function showProInterestModal() {
+    const email = (typeof Auth !== 'undefined') ? (Auth.getEmail() || '') : '';
+    const modalHtml = `
+      <div class="pro-modal-content" style="text-align: left; line-height: 1.5; font-size: 0.95rem;">
+        <p style="margin: 0 0 1.25rem 0; color: var(--text-secondary);">
+          You've used all <strong>${TRIAL_LIMIT}</strong> free trial uses of our AI teacher tools.
+        </p>
+        <p style="margin: 0 0 1.25rem 0; font-weight: 500; color: var(--text-primary);">
+          Would you be interested in a <strong>Daily Deutsch Pro</strong> plan with unlimited AI scans, personalized grammar explanations, and context reading stories?
+        </p>
+        <div style="background: rgba(14, 190, 255, 0.05); border: 1px solid rgba(14, 190, 255, 0.15); border-radius: 8px; padding: 12px; margin-bottom: 1.5rem; font-size: 0.88rem; color: var(--text-secondary);">
+          🎯 <strong>Pro features include:</strong>
+          <ul style="margin: 6px 0 0 0; padding-left: 18px; line-height: 1.4;">
+            <li>Unlimited AI Grammar Auditing</li>
+            <li>Custom contextual AI Reading Stories</li>
+            <li>In-exercise AI Grammar Explanations</li>
+            <li>Priority translator server bandwidth</li>
+          </ul>
+        </div>
+        
+        <div style="margin-bottom: 1.25rem;">
+          <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; color: var(--text-primary);">Your Email Address</label>
+          <input type="email" id="waitlist-email" class="input" style="width: 100%; box-sizing: border-box;" value="${escHtml(email)}" placeholder="you@example.com" />
+        </div>
+        
+        <div style="margin-bottom: 1.5rem; display: flex; align-items: flex-start; gap: 8px;">
+          <input type="checkbox" id="waitlist-notify" checked style="margin-top: 3px;" />
+          <label for="waitlist-notify" style="font-size: 0.82rem; color: var(--text-secondary); cursor: pointer; user-select: none;">
+            Yes, notify me when Pro launches (estimate: €3/month).
+          </label>
+        </div>
+        
+        <div style="display: flex; gap: 10px; flex-direction: column;">
+          <button class="btn btn-primary w-full" id="waitlist-submit" onclick="App.submitProInterest()" style="justify-content: center; display: flex; padding: 12px;">
+            Yes, I'm interested! 🚀
+          </button>
+          <button class="btn btn-ghost w-full" onclick="const overlay = document.getElementById('ai-modal-overlay'); if (overlay) overlay.remove();" style="justify-content: center; display: flex;">
+            Not right now
+          </button>
+        </div>
+        
+        <p style="font-size: 0.78rem; text-align: center; color: var(--text-muted); margin-top: 1rem; margin-bottom: 0;">
+          Or connect your own free Gemini API Key in Settings to get unlimited usage for free!
+        </p>
+      </div>
+    `;
+    
+    showModal("Upgrade to Daily Deutsch Pro", modalHtml);
+  }
+
+  async function submitProInterest() {
+    const emailInput = document.getElementById('waitlist-email');
+    const notifyCheck = document.getElementById('waitlist-notify');
+    const submitBtn = document.getElementById('waitlist-submit');
+    if (!emailInput) return;
+    
+    const email = emailInput.value.trim();
+    if (!email) {
+      showToast('Please enter a valid email address!', 'error');
+      return;
+    }
+    
+    const interested = notifyCheck ? notifyCheck.checked : true;
+    
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Submitting…';
+    }
+    
+    try {
+      const uid = (typeof Auth !== 'undefined') ? Auth.getUid() : null;
+      const displayName = (typeof Auth !== 'undefined') ? Auth.getDisplayName() : 'Guest';
+      
+      if (uid) {
+        await firebase.firestore()
+          .collection('waitlist')
+          .doc(uid)
+          .set({
+            email,
+            interested,
+            uid,
+            displayName,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            trialUsed: getTrialUsedCount(),
+            platform: 'web'
+          });
+      } else {
+        await firebase.firestore()
+          .collection('waitlist')
+          .add({
+            email,
+            interested,
+            displayName: 'Anonymous Guest',
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            trialUsed: getTrialUsedCount(),
+            platform: 'web'
+          });
+      }
+      
+      showToast('Thank you! Interest registered.', 'success');
+      
+      const overlay = document.getElementById('ai-modal-overlay');
+      if (overlay) overlay.remove();
+      
+      showModal("Thank You! 🎉", `
+        <div style="text-align: center; line-height: 1.5; padding: 10px;">
+          <p style="margin-bottom: 1.25rem;">We have saved your email: <strong>${escHtml(email)}</strong>. We will let you know as soon as the Pro options are available!</p>
+          <p style="margin-bottom: 1.5rem; color: var(--text-muted); font-size: 0.88rem;">In the meantime, you can easily connect your own free API key under Settings to unlock unlimited AI features right away.</p>
+          <button class="btn btn-primary w-full" onclick="const overlay = document.getElementById('ai-modal-overlay'); if (overlay) overlay.remove();">Close</button>
+        </div>
+      `);
+    } catch (e) {
+      console.error('[App] waitlist error:', e);
+      showToast(`Error submitting waitlist: ${e.message}`, 'error');
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Yes, I'm interested! 🚀";
+      }
+    }
+  }
+
+  async function callGemini(prompt, json = false) {
+    const customKey = getGeminiKey();
+    if (customKey) {
+      return GeminiClient.callGemini(prompt, json, customKey);
+    }
+    
+    if (!hasTrialRemaining()) {
+      showProInterestModal();
+      throw new Error("TRIAL_EXHAUSTED");
+    }
+    
+    try {
+      const res = await GeminiClient.callGemini(prompt, json, TRIAL_KEY);
+      incrementTrialUsedCount();
+      return res;
+    } catch (err) {
+      console.error("[App] Trial callGemini error:", err);
+      throw err;
+    }
+  }
 
   function saveGeminiKeyFromUI() {
     const el = document.getElementById('setting-gemini-key');
@@ -112,6 +307,7 @@ const App = (() => {
     const input = document.getElementById('setting-gemini-key');
     if (input) input.value = key;
     updateSettingsStatusBadges(Translator.serverStatus);
+    updateTrialBadges();
   }
 
   function updateSettingsStatusBadges(serverStatus) {
@@ -287,6 +483,7 @@ const App = (() => {
     if (viewId === 'insights') Insights.render(WordBank.getStats());
     if (viewId === 'exercises') renderExercisePicker();
     if (viewId === 'settings') initBackendPage();
+    updateTrialBadges();
   }
 
   function updateNavStats() {
@@ -1248,7 +1445,7 @@ const App = (() => {
   }
 
   // ── Feedback Bar ─────────────────────────────────────────────
-  function showExerciseFeedback({ correct, title, detail, correctAnswer, onContinue, canExplain }) {
+  function showExerciseFeedback({ correct, title, detail, correctAnswer, onContinue, canExplain, explainArgs }) {
     const bar = document.getElementById('exercise-feedback-bar');
     if (!bar) return;
 
@@ -1269,6 +1466,11 @@ const App = (() => {
 
     const explainBtn = document.getElementById('fb-explain-btn');
     explainBtn.style.display = (canExplain && !correct) ? '' : 'none';
+    if (explainBtn.style.display !== 'none' && explainArgs) {
+      explainBtn.onclick = () => {
+        explainMistake(...explainArgs);
+      };
+    }
 
     const continueBtn = document.getElementById('fb-continue-btn');
     continueBtn.onclick = () => {
@@ -1975,8 +2177,8 @@ const App = (() => {
       return;
     }
     
-    if (!getGeminiKey()) {
-      showToast('To scan custom sentences, please connect a free Gemini API Key in Settings. Try a Sandbox sentence below!', 'info');
+    if (!getGeminiKey() && !hasTrialRemaining()) {
+      showProInterestModal();
       return;
     }
     
@@ -2719,6 +2921,10 @@ Do not include any markdown formatting wrappers (like \`\`\`json). Just return t
   }
 
   async function explainMistake(context, correct, wrong) {
+    if (!getGeminiKey() && !hasTrialRemaining()) {
+      showProInterestModal();
+      return;
+    }
     showModal('AI Grammar Explanation', '<div style="display:flex; justify-content:center; align-items:center; padding:30px;"><div class="spinner"></div></div>');
     try {
       const prompt = `You are a friendly ${getLearningLangName()} language tutor. The user got a question wrong in an exercise.
@@ -2749,8 +2955,8 @@ Do not include any markdown formatting wrappers (like \`\`\`json). Just return t
       showToast('Save at least 3 words in your word bank first!', 'info');
       return;
     }
-    if (!getGeminiKey()) {
-      showToast('To write custom stories, please connect a free Gemini API Key in Settings. Try the Demo Story instead!', 'info');
+    if (!getGeminiKey() && !hasTrialRemaining()) {
+      showProInterestModal();
       return;
     }
 
@@ -3378,6 +3584,7 @@ Do not include any markdown formatting wrappers (like \`\`\`json). Just return t
     nextQuestion,
     // AI Story
     generateAIStory, runStoryDemo,
+    submitProInterest,
     saveGeminiKeyFromUI,
     updateGeminiStatusUI,
     testGeminiKey,
