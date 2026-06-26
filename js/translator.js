@@ -297,8 +297,15 @@ const Translator = (() => {
       if (_translateEntitled) {
         try {
           result = await translateViaSharedGoogle(cleanText, from, to);
+          if (typeof Analytics !== 'undefined') {
+            Analytics.logEvent('paid_translate_used', { remaining: _lastTranslateRemaining });
+          }
         } catch (e) {
           console.warn('[Translator] shared Google path failed, falling back to MyMemory:', e.message);
+          if (typeof Analytics !== 'undefined') {
+            Analytics.logEvent(e.code === 'TRANSLATE_EXHAUSTED' ? 'translate_exhausted' : 'paid_translate_failed',
+              { reason: (e && e.message || 'unknown').slice(0, 120) });
+          }
           result = null;
         }
       }

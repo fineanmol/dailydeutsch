@@ -130,7 +130,10 @@ const GeminiClient = (() => {
     if (!_cachedTrialKey) {
       try {
         const cfg = await db.doc("config/trial").get();
-        _cachedTrialKey = cfg.exists ? (cfg.data().key || "") : "";
+        // Accept GEMINI_KEY (canonical, matches GOOGLE_KEY/DEEPL_KEY naming) and
+        // fall back to the legacy `key` field so existing setups keep working.
+        const data = cfg.exists ? cfg.data() : {};
+        _cachedTrialKey = data.GEMINI_KEY || data.key || "";
       } catch (e) {
         throw new Error("The free AI trial is temporarily unavailable. Add your own Gemini key in Settings to continue.");
       }

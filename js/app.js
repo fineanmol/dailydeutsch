@@ -175,7 +175,11 @@ const App = (() => {
     }
   }
 
-  function showProInterestModal() {
+  function showProInterestModal(source = 'unknown') {
+    // PM funnel: track the upgrade-prompt impression and what triggered it.
+    if (typeof Analytics !== 'undefined') {
+      Analytics.logEvent('pro_interest_modal_shown', { source, trial_used: getTrialUsedCount() });
+    }
     const email = (typeof Auth !== 'undefined') ? (Auth.getEmail() || '') : '';
     const modalHtml = `
       <div class="pro-modal-content" style="text-align: left; line-height: 1.5; font-size: 0.95rem;">
@@ -185,7 +189,7 @@ const App = (() => {
         <p style="margin: 0 0 1.25rem 0; font-weight: 500; color: var(--text-primary);">
           Would you be interested in a <strong>Daily Deutsch Pro</strong> plan with unlimited AI scans, personalized grammar explanations, and context reading stories?
         </p>
-        <div style="background: rgba(14, 190, 255, 0.05); border: 1px solid rgba(14, 190, 255, 0.15); border-radius: 8px; padding: 12px; margin-bottom: 1.5rem; font-size: 0.88rem; color: var(--text-secondary);">
+        <div style="background: var(--accent-blue-soft); border: 1px solid var(--border-accent); border-radius: 8px; padding: 12px; margin-bottom: 1.5rem; font-size: 0.88rem; color: var(--text-secondary);">
           🎯 <strong>Pro features include:</strong>
           <ul style="margin: 6px 0 0 0; padding-left: 18px; line-height: 1.4;">
             <li>Unlimited AI Grammar Auditing</li>
@@ -274,8 +278,13 @@ const App = (() => {
           });
       }
       
+      // PM funnel: the highest-intent monetization signal.
+      if (typeof Analytics !== 'undefined') {
+        Analytics.logEvent('pro_interest_submitted', { interested, trial_used: getTrialUsedCount() });
+      }
+
       showToast('Thank you! Interest registered.', 'success');
-      
+
       const overlay = document.getElementById('ai-modal-overlay');
       if (overlay) overlay.remove();
       
@@ -309,7 +318,8 @@ const App = (() => {
     // Free trial → Firestore-metered (trialUsage/{uid}). GeminiClient
     // consumes one unit atomically and throws TRIAL_EXHAUSTED when spent.
     if (!hasTrialRemaining()) {
-      showProInterestModal();
+      if (typeof Analytics !== 'undefined') Analytics.logEvent('trial_exhausted', { stage: 'pre_check' });
+      showProInterestModal('ai_trial_exhausted');
       throw new Error("TRIAL_EXHAUSTED");
     }
 
@@ -321,7 +331,8 @@ const App = (() => {
     } catch (err) {
       if (err && err.code === "TRIAL_EXHAUSTED") {
         setTrialRemaining(0);
-        showProInterestModal();
+        if (typeof Analytics !== 'undefined') Analytics.logEvent('trial_exhausted', { stage: 'on_call' });
+        showProInterestModal('ai_trial_exhausted');
         throw new Error("TRIAL_EXHAUSTED");
       }
       if (err && err.code === "NOT_SIGNED_IN") {
@@ -329,6 +340,7 @@ const App = (() => {
         throw err;
       }
       console.error("[App] Trial callGemini error:", err);
+      if (typeof Analytics !== 'undefined') Analytics.logEvent('ai_failed', { reason: (err && err.message || 'unknown').slice(0, 120) });
       if (err.message && (err.message.toLowerCase().includes("key not valid") || err.message.toLowerCase().includes("api key not valid"))) {
         throw new Error("The shared AI trial key has expired. Please add your own free Gemini API Key under Settings to unlock scans.");
       }
@@ -662,6 +674,12 @@ const App = (() => {
       if (!_appInitialized) {
         init();
         _appInitialized = true;
+        // PM: session start + new-vs-returning cohort (first session ever?).
+        if (typeof Analytics !== 'undefined') {
+          const returning = localStorage.getItem('dd_seen_before') === '1';
+          Analytics.logEvent('app_session_started', { cohort: returning ? 'returning' : 'new', is_guest: Auth.isGuest() });
+          localStorage.setItem('dd_seen_before', '1');
+        }
       } else {
         // Subsequent auth changes: re-render data views
         updateNavStats();

@@ -44,7 +44,7 @@ const AIFeatures = (() => {
   // ── In-exercise Grammar Explanation ───────────────────────────
   async function explainMistake(context, correct, wrong) {
     if (!getGeminiKey() && !hasTrialRemaining()) {
-      showProInterestModal();
+      showProInterestModal('ai_explain');
       return;
     }
     showModal('AI Grammar Explanation', '<div style="display:flex; justify-content:center; align-items:center; padding:30px;"><div class="spinner"></div></div>');
@@ -59,9 +59,9 @@ const AIFeatures = (() => {
 
       showModal('AI Grammar Explanation', `
         <div style="line-height:1.5; font-size:0.95rem; color:var(--text-primary);">
-          <div style="margin-bottom:1rem; padding:10px; background:rgba(255,60,65,0.06); border-radius:6px; font-size:0.85rem; border:1px solid rgba(255,60,65,0.15)">
+          <div style="margin-bottom:1rem; padding:10px; background:rgba(233,95,92,0.06); border-radius:6px; font-size:0.85rem; border:1px solid rgba(233,95,92,0.15)">
             <strong>Your answer:</strong> <span style="text-decoration:line-through;color:var(--accent-red);">${escHtml(wrong)}</span><br>
-            <strong>Correct answer:</strong> <span style="color:#47cf73;font-weight:600;">${escHtml(correct)}</span>
+            <strong>Correct answer:</strong> <span style="color:var(--mint);font-weight:600;">${escHtml(correct)}</span>
           </div>
           <p style="margin: 0 0 1.25rem 0;">${escHtml(explanation)}</p>
           <button class="btn btn-primary w-full" onclick="document.getElementById('dd-custom-modal').remove()">Got it!</button>
@@ -79,7 +79,7 @@ const AIFeatures = (() => {
       return;
     }
     if (!getGeminiKey() && !hasTrialRemaining()) {
-      showProInterestModal();
+      showProInterestModal('ai_story');
       return;
     }
 
@@ -122,7 +122,7 @@ const AIFeatures = (() => {
             <button class="btn btn-ghost btn-sm" id="story-translate-btn" onclick="document.getElementById('ai-story-en').classList.toggle('hidden'); this.textContent = this.textContent.includes('Show') ? 'Hide Translation' : 'Show Translation'">Show Translation</button>
             <p class="ai-story-text-en hidden" id="ai-story-en" style="margin-top:0.75rem; color:var(--text-muted); font-size:0.9rem; line-height:1.5;">${escHtml(res.storyEn)}</p>
             <div style="margin-top:1.25rem; font-size:0.75rem; color:var(--text-muted); border-top:1px solid rgba(0,0,0,0.06); padding-top:8px;">
-              Featured words: ${randomWords.map(w => `<span class="badge" style="background:rgba(14,190,255,0.08);color:var(--primary);margin-right:4px;">${escHtml(w.german)}</span>`).join('')}
+              Featured words: ${randomWords.map(w => `<span class="badge" style="background:rgba(92,195,232,0.08);color:var(--primary);margin-right:4px;">${escHtml(w.german)}</span>`).join('')}
             </div>
             <button class="btn btn-secondary btn-sm" style="margin-top:1rem; width:100%;" onclick="App.generateAIStory()">✏️ Write another story</button>
           </div>`;
@@ -177,7 +177,7 @@ const AIFeatures = (() => {
         <p class="ai-story-text-en hidden" id="ai-story-en" style="margin-top:0.75rem; color:var(--text-muted); font-size:0.9rem; line-height:1.5;">${storyEn}</p>
         <div style="margin-top:1.25rem; font-size:0.75rem; color:var(--text-muted); border-top:1px solid rgba(0,0,0,0.06); padding-top:8px; display:flex; flex-wrap:wrap; gap:4px; align-items:center;">
           <span>Featured words:</span>
-          ${demoWords.map(w => `<span class="badge" style="background:rgba(14,190,255,0.08);color:var(--primary);">${escHtml(w.german)} (${escHtml(w.english)})</span>`).join('')}
+          ${demoWords.map(w => `<span class="badge" style="background:rgba(92,195,232,0.08);color:var(--primary);">${escHtml(w.german)} (${escHtml(w.english)})</span>`).join('')}
         </div>
         <div style="margin-top:1.25rem; padding:10px; background:rgba(0,0,0,0.02); border-radius:6px; font-size:0.78rem; color:var(--text-muted); line-height:1.35;">
           💡 Connect a free Gemini API Key in Settings to generate stories dynamically from your actual Word Bank!
@@ -372,7 +372,7 @@ const AIFeatures = (() => {
     }
 
     if (!getGeminiKey() && !hasTrialRemaining()) {
-      showProInterestModal();
+      showProInterestModal('ai_auditor');
       return;
     }
 
@@ -492,16 +492,9 @@ Do not include any markdown formatting wrappers (like \`\`\`json). Just return t
         Analytics.logEvent('ai_writing_assistant_success', { cefr_level: res.cefrLevel });
       }
 
-      const levelColors = {
-        A1: { color: '#47cf73', bg: 'rgba(71,207,115,0.08)', border: 'rgba(71,207,115,0.22)' },
-        A2: { color: '#0ebeff', bg: 'rgba(14,190,255,0.08)', border: 'rgba(14,190,255,0.22)' },
-        B1: { color: '#fcd000', bg: 'rgba(252,208,0,0.08)', border: 'rgba(252,208,0,0.22)' },
-        B2: { color: '#ae63e4', bg: 'rgba(174,99,228,0.08)', border: 'rgba(174,99,228,0.22)' },
-        C1: { color: '#ff3c41', bg: 'rgba(255,60,65,0.08)', border: 'rgba(255,60,65,0.22)' },
-        C2: { color: '#ff3c41', bg: 'rgba(255,60,65,0.08)', border: 'rgba(255,60,65,0.22)' },
-      };
-
-      const meta = levelColors[res.cefrLevel] || { color: '#ae63e4', bg: 'rgba(174,99,228,0.08)', border: 'rgba(174,99,228,0.22)' };
+      // Brand CEFR palette — single source of truth in js/cefr.js (CEFR.COLORS).
+      const meta = (typeof CEFR !== 'undefined' && CEFR.COLORS[res.cefrLevel])
+        || { color: 'var(--sky-blue)', bg: 'rgba(92,195,232,0.08)', border: 'rgba(92,195,232,0.22)' };
 
       let improvementsHtml = '';
       if (res.improvements && res.improvements.length > 0 && res.improvements[0].original) {

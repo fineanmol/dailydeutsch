@@ -243,6 +243,11 @@ const ExerciseEngine = (() => {
     document.getElementById('result-detail').textContent = `${score} / ${total} correct`;
 
     WordBank.unlockExerciseBadges(score, total);
+
+    // PM activation funnel: first completed practice session on this device.
+    if (typeof Analytics !== 'undefined') {
+      Analytics.logEventOnce('first_exercise_completed', { exercise_type: state.exerciseMode, percentage: pct });
+    }
   }
 
   function renderFlashcard() {

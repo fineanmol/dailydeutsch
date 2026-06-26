@@ -254,7 +254,7 @@ const AuthUI = (() => {
     // Spawn confetti dots
     const card = document.getElementById('streak-modal-card');
     if (card) {
-      const colors = ['#ff9a3c','#ff5e00','#ffdb00','#5cc3e8','#79ceb8','#ae63e4'];
+      const colors = ['#ffdb00','#5cc3e8','#79ceb8','#e95f5c','#314855','#5cc3e8'];
       for (let i = 0; i < 12; i++) {
         const dot = document.createElement('div');
         dot.className = 'streak-confetti-dot';

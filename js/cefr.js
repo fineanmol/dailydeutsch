@@ -118,14 +118,28 @@ const CEFR = (() => {
     'einerseits','andererseits','sowohl als auch','weder noch','entweder oder',
   ]);
 
-  // CEFR badge meta
+  // Shared CEFR colour scale — BRAND COLOURS ONLY, single source of truth.
+  // Mirrors the --cefr-* tokens in css/style.css and is reused by
+  // js/features/ai.js and js/features/translate.js (CEFR.COLORS) so the level
+  // palette is defined exactly once. beginner→advanced: mint → sky-blue →
+  // sunshine → navy → coral.
+  const COLORS = {
+    A1: { color: '#79ceb8', bg: 'rgba(121,206,184,0.14)', border: 'rgba(121,206,184,0.30)' },
+    A2: { color: '#5cc3e8', bg: 'rgba(92,195,232,0.14)',  border: 'rgba(92,195,232,0.30)' },
+    B1: { color: '#ffdb00', bg: 'rgba(255,219,0,0.16)',   border: 'rgba(255,219,0,0.35)' },
+    B2: { color: '#314855', bg: 'rgba(49,72,85,0.10)',    border: 'rgba(49,72,85,0.25)' },
+    C1: { color: '#e95f5c', bg: 'rgba(233,95,92,0.14)',   border: 'rgba(233,95,92,0.30)' },
+    C2: { color: '#e95f5c', bg: 'rgba(233,95,92,0.14)',   border: 'rgba(233,95,92,0.30)' },
+  };
+
+  // CEFR badge meta (colour comes from the shared brand scale above)
   const LEVELS = {
-    A1: { label: 'A1', title: 'Beginner', color: '#47cf73', bg: 'rgba(71,207,115,0.14)' },
-    A2: { label: 'A2', title: 'Elementary', color: '#0ebeff', bg: 'rgba(14,190,255,0.14)' },
-    B1: { label: 'B1', title: 'Intermediate', color: '#fcd000', bg: 'rgba(252,208,0,0.14)' },
-    B2: { label: 'B2', title: 'Upper-Intermediate', color: '#ae63e4', bg: 'rgba(174,99,228,0.14)' },
-    C1: { label: 'C1', title: 'Advanced', color: '#ff3c41', bg: 'rgba(255,60,65,0.14)' },
-    C2: { label: 'C2', title: 'Mastery', color: '#76daff', bg: 'rgba(118,218,255,0.14)' },
+    A1: { label: 'A1', title: 'Beginner', ...COLORS.A1 },
+    A2: { label: 'A2', title: 'Elementary', ...COLORS.A2 },
+    B1: { label: 'B1', title: 'Intermediate', ...COLORS.B1 },
+    B2: { label: 'B2', title: 'Upper-Intermediate', ...COLORS.B2 },
+    C1: { label: 'C1', title: 'Advanced', ...COLORS.C1 },
+    C2: { label: 'C2', title: 'Mastery', ...COLORS.C2 },
   };
 
   function getLevel(germanText) {
@@ -161,5 +175,5 @@ const CEFR = (() => {
     return LEVELS[level] || LEVELS['B1'];
   }
 
-  return { getLevel, getLevelInfo };
+  return { getLevel, getLevelInfo, COLORS };
 })();

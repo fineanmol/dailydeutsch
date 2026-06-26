@@ -37,7 +37,25 @@ const Analytics = (() => {
     }
   }
 
+  /**
+   * Fire an event at most ONCE per device, ever. Used for activation-funnel
+   * milestones (first_translation, first_word_saved, …). The fired set is
+   * persisted in localStorage so it survives reloads but not a data clear.
+   * @returns {boolean} true if this was the first time (event fired).
+   */
+  function logEventOnce(name, params = {}) {
+    const KEY = 'dd_fired_once';
+    let fired = {};
+    try { fired = JSON.parse(localStorage.getItem(KEY)) || {}; } catch { fired = {}; }
+    if (fired[name]) return false;
+    fired[name] = 1;
+    try { localStorage.setItem(KEY, JSON.stringify(fired)); } catch { /* ignore quota */ }
+    logEvent(name, params);
+    return true;
+  }
+
   return {
-    logEvent
+    logEvent,
+    logEventOnce
   };
 })();

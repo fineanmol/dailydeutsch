@@ -204,6 +204,11 @@ const TranslateFeature = (() => {
           updateNavStats();
           updateProviderIndicator();
 
+          // PM activation funnel: first successful translation on this device.
+          if (typeof Analytics !== 'undefined') {
+            Analytics.logEventOnce('first_translation', { provider: result.provider });
+          }
+
           if (isEnDe) {
             // Fetch level variations in background
             fetchLevelVariations(text, result.text);
@@ -218,6 +223,13 @@ const TranslateFeature = (() => {
         }
       } catch (err) {
         console.error('Translation error:', err);
+        // PM: translation error rate / provider failures / offline.
+        if (typeof Analytics !== 'undefined') {
+          Analytics.logEvent('translate_failed', {
+            offline: (typeof navigator !== 'undefined' && navigator.onLine === false),
+            reason: (err && err.message || 'unknown').slice(0, 120),
+          });
+        }
         setResultError(err.message);
       } finally {
         setResultLoading(false);
@@ -433,12 +445,8 @@ const TranslateFeature = (() => {
 
     const v = state.levelVariations;
     const levels = ['A1', 'A2', 'B1', 'B2'];
-    const levelColors = {
-      A1: { color: '#47cf73', bg: 'rgba(71,207,115,0.1)', border: 'rgba(71,207,115,0.25)' },
-      A2: { color: '#0ebeff', bg: 'rgba(14,190,255,0.1)', border: 'rgba(14,190,255,0.25)' },
-      B1: { color: '#fcd000', bg: 'rgba(252,208,0,0.1)', border: 'rgba(252,208,0,0.25)' },
-      B2: { color: '#ae63e4', bg: 'rgba(174,99,228,0.1)', border: 'rgba(174,99,228,0.25)' },
-    };
+    // Brand CEFR palette — single source of truth in js/cefr.js (CEFR.COLORS).
+    const levelColors = (typeof CEFR !== 'undefined' && CEFR.COLORS) || {};
     const levelDesc = {
       A1: 'Beginner: simple, direct everyday words',
       A2: 'Elementary: basic grammar, common phrases',
@@ -643,6 +651,11 @@ const TranslateFeature = (() => {
     if (isNew) showToast(`"${word.german}" saved! ✨`, 'success');
     else showToast(`"${word.german}" (used ${word.frequency}× now)`, 'info');
 
+    // PM activation funnel: first word saved = real intent to learn (aha moment).
+    if (isNew && typeof Analytics !== 'undefined') {
+      Analytics.logEventOnce('first_word_saved', { category });
+    }
+
     if (isNew && isAIEnabled() && getGeminiKey()) {
       fetchAndAttachWordMetadata(word.id, word.german, word.english);
     }
@@ -796,7 +809,7 @@ const TranslateFeature = (() => {
             <span class="badge" style="background:${cefrInfo.bg};color:${cefrInfo.color};border:1px solid ${cefrInfo.color}22">
               ${cefrLevel}
             </span>
-            ${accuracy !== null ? `<span class="badge" style="background:rgba(71,207,115,0.1);color:#47cf73">✓ ${accuracy}%</span>` : ''}
+            ${accuracy !== null ? `<span class="badge" style="background:rgba(121,206,184,0.1);color:var(--mint)">✓ ${accuracy}%</span>` : ''}
           </div>
           ${aiMetaHtml}
           <div class="word-card-footer">

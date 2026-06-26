@@ -40,7 +40,11 @@ In the [Firebase Console](https://console.firebase.google.com/) →
 
 - Collection ID: `config`
 - Document ID: `trial`
-- Field: `key` (type: *string*) = `<your trial Gemini API key>`
+- Field: **`GEMINI_KEY`** (type: *string*) = `<your trial Gemini API key>`
+
+> The app also still accepts a legacy field named `key` for backward
+> compatibility, but **`GEMINI_KEY`** is the canonical name — it sits alongside
+> `GOOGLE_KEY` (paid translator) on the same `config/trial` doc.
 
 That's it. No other document is created by hand — `trialUsage/{uid}` docs are
 created automatically by the app as users consume the trial.
