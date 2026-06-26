@@ -7,10 +7,10 @@
   <title>Daily Deutsch: Build Your German Vocabulary</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="css/style.css?v=1.2.34" />
+  <link rel="stylesheet" href="css/style.css?v=1.2.35" />
   <link rel="manifest" href="manifest.json" />
-  <link rel="icon" type="image/png" href="icon.png?v=1.2.34" />
-  <link rel="apple-touch-icon" href="icon.png?v=1.2.34" />
+  <link rel="icon" type="image/png" href="icon.png?v=1.2.35" />
+  <link rel="apple-touch-icon" href="icon.png?v=1.2.35" />
   <script>
     (function() {
       const theme = localStorage.getItem('dd_theme') || 'system';
@@ -930,7 +930,7 @@
                   <button class="btn btn-ghost btn-sm" onclick="togglePasswordVisibility('setting-gemini-key')" style="display:flex; align-items:center; justify-content:center;">👁</button>
                 </div>
                 <div style="display: flex; align-items: center; gap: 6px; margin-top: 8px;">
-                  <input type="checkbox" id="settings-page-use-custom-gemini" style="width: 15px; height: 15px; accent-color: var(--primary); cursor: pointer;" checked />
+                  <input type="checkbox" id="settings-page-use-custom-gemini" onchange="App.savePageSettings()" style="width: 15px; height: 15px; accent-color: var(--primary); cursor: pointer;" checked />
                   <label for="settings-page-use-custom-gemini" style="font-size: 0.8rem; cursor: pointer; color: var(--text-primary); user-select: none;">Enable Custom Gemini Key</label>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
@@ -952,7 +952,7 @@
                   <button class="btn btn-ghost btn-sm" onclick="togglePasswordVisibility('pg-deepl-key')" style="display:flex; align-items:center; justify-content:center;">👁</button>
                 </div>
                 <div style="display: flex; align-items: center; gap: 6px; margin-top: 8px;">
-                  <input type="checkbox" id="settings-page-use-custom-deepl" style="width: 15px; height: 15px; accent-color: var(--primary); cursor: pointer;" checked />
+                  <input type="checkbox" id="settings-page-use-custom-deepl" onchange="App.savePageSettings()" style="width: 15px; height: 15px; accent-color: var(--primary); cursor: pointer;" checked />
                   <label for="settings-page-use-custom-deepl" style="font-size: 0.8rem; cursor: pointer; color: var(--text-primary); user-select: none;">Enable Custom DeepL Key</label>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
@@ -1087,26 +1087,26 @@
   firebase.analytics();
 </script>
 
-<script src="js/analytics.js?v=1.2.34"></script>
+<script src="js/analytics.js?v=1.2.35"></script>
 
 <!-- Scripts (load order: Firebase globals must come first) -->
-<script src="js/motion.js?v=1.2.34"></script>
-<script src="js/auth.js?v=1.2.34"></script>
-<script src="js/db.js?v=1.2.34"></script>
-<script src="js/categories.js?v=1.2.34"></script>
-<script src="js/wordbank.js?v=1.2.34"></script>
-<script src="js/cefr.js?v=1.2.34"></script>
-<script src="js/translator.js?v=1.2.34"></script>
-<script src="js/exercises.js?v=1.2.34"></script>
-<script src="js/leaderboard.js?v=1.2.34"></script>
-<script src="js/insights.js?v=1.2.34"></script>
+<script src="js/motion.js?v=1.2.35"></script>
+<script src="js/auth.js?v=1.2.35"></script>
+<script src="js/db.js?v=1.2.35"></script>
+<script src="js/categories.js?v=1.2.35"></script>
+<script src="js/wordbank.js?v=1.2.35"></script>
+<script src="js/cefr.js?v=1.2.35"></script>
+<script src="js/translator.js?v=1.2.35"></script>
+<script src="js/exercises.js?v=1.2.35"></script>
+<script src="js/leaderboard.js?v=1.2.35"></script>
+<script src="js/insights.js?v=1.2.35"></script>
 <!-- Standalone modules (no cross-dependencies) -->
-<script src="js/profile.js?v=1.2.34"></script>
-<script src="js/language.js?v=1.2.34"></script>
-<script src="js/gemini.js?v=1.2.34"></script>
-<script src="js/ui.js?v=1.2.34"></script>
+<script src="js/profile.js?v=1.2.35"></script>
+<script src="js/language.js?v=1.2.35"></script>
+<script src="js/gemini.js?v=1.2.35"></script>
+<script src="js/ui.js?v=1.2.35"></script>
 <!-- App orchestrator (depends on all modules above) -->
-<script src="js/app.js?v=1.2.34"></script>
+<script src="js/app.js?v=1.2.35"></script>
 <script>
   function togglePasswordVisibility(inputId) {
     const el = document.getElementById(inputId);
