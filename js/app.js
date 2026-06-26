@@ -1817,10 +1817,12 @@ const App = (() => {
     // Check if key is available
     const keyAvailable = !!getGeminiKey();
     const warning = document.getElementById('auditor-key-warning');
+    const sandbox = document.getElementById('auditor-sandbox');
     const submitBtn = document.getElementById('auditor-submit-btn');
     
     if (warning) warning.classList.toggle('hidden', keyAvailable);
-    if (submitBtn) submitBtn.disabled = !keyAvailable;
+    if (sandbox) sandbox.classList.toggle('hidden', keyAvailable);
+    if (submitBtn) submitBtn.disabled = false; // Always enable to guide users
     
     // Clear inputs and results
     const input = document.getElementById('auditor-input');
@@ -1839,6 +1841,132 @@ const App = (() => {
     renderExercisePicker();
   }
 
+  async function runAuditorDemo(sentence) {
+    const input = document.getElementById('auditor-input');
+    if (input) input.value = sentence;
+
+    const loader = document.getElementById('auditor-loader');
+    const resultsContainer = document.getElementById('auditor-results');
+    const submitBtn = document.getElementById('auditor-submit-btn');
+
+    if (loader) loader.classList.remove('hidden');
+    if (resultsContainer) resultsContainer.innerHTML = '';
+    if (submitBtn) submitBtn.disabled = true;
+
+    // Simulate network delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    let mockData = {};
+    if (sentence.includes('gehen gestern')) {
+      mockData = {
+        sentenceOriginal: "Ich gehen gestern nach Hause",
+        sentenceCorrected: "Ich bin gestern nach Hause gegangen",
+        isPerfect: false,
+        mistakes: [
+          {
+            wrong: "gehen",
+            right: "bin gegangen",
+            explanation: "German past tense (Perfekt) for 'gehen' (to go) requires the auxiliary verb 'sein' (bin) and the past participle 'gegangen'."
+          },
+          {
+            wrong: "gehen gestern nach Hause",
+            right: "bin gestern nach Hause gegangen",
+            explanation: "In past tense clauses, the past participle ('gegangen') must go at the very end of the sentence."
+          }
+        ],
+        generalFeedback: "You used the correct vocabulary, but watch out for past tense structure! In German, conversational past tense uses an auxiliary verb in second position, and places the main action verb at the very end."
+      };
+    } else if (sentence.includes('gekaufen')) {
+      mockData = {
+        sentenceOriginal: "Er hat das Buch gekaufen",
+        sentenceCorrected: "Er hat das Buch gekauft",
+        isPerfect: false,
+        mistakes: [
+          {
+            wrong: "gekaufen",
+            right: "gekauft",
+            explanation: "The verb 'kaufen' is a regular (weak) verb. Its past participle is formed with 'ge-' + verb stem + '-t' (gekauft), not '-en'."
+          }
+        ],
+        generalFeedback: "Almost perfect! You correctly used the auxiliary verb 'haben' and placed the participle at the end. Just remember that regular verbs like 'kaufen' end in '-t' rather than '-en' in their past participle form."
+      };
+    } else {
+      mockData = {
+        sentenceOriginal: "Der Hund ist sehr treu und groß",
+        sentenceCorrected: "Der Hund ist sehr treu und groß",
+        isPerfect: true,
+        mistakes: [],
+        generalFeedback: "Outstanding! Your sentence is grammatically correct and uses accurate capitalization (Nouns like 'Hund' are capitalized in German)."
+      };
+    }
+
+    renderAuditorResults(mockData);
+
+    if (loader) loader.classList.add('hidden');
+    if (submitBtn) submitBtn.disabled = false;
+  }
+
+  function renderAuditorResults(data) {
+    const resultsContainer = document.getElementById('auditor-results');
+    if (!resultsContainer) return;
+
+    let html = '';
+    if (data.isPerfect) {
+      html += `
+        <div class="auditor-result-card perfect">
+          <div style="font-size:1.8rem; margin-bottom: 6px;">🎉 Excellent!</div>
+          <div class="auditor-sentence-display">
+            <span class="auditor-sentence-corrected">${escHtml(data.sentenceCorrected)}</span>
+          </div>
+          <p style="margin: 0.5rem 0 0 0; font-size: 0.92rem; color: var(--text-secondary); line-height: 1.45;">
+            ${escHtml(data.generalFeedback || 'No grammar or spelling mistakes detected. Great job!')}
+          </p>
+        </div>
+      `;
+    } else {
+      html += `
+        <div class="auditor-result-card imperfect">
+          <div style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 700;">Auditor Correction</div>
+          
+          <div class="auditor-sentence-display" style="margin-top: 6px; margin-bottom: 12px;">
+            <div class="auditor-sentence-original">${escHtml(data.sentenceOriginal)}</div>
+            <div class="auditor-sentence-corrected" style="color: var(--sky-blue);">${escHtml(data.sentenceCorrected)}</div>
+          </div>
+          
+          <div class="auditor-mistakes-title">Grammar Scan Results</div>
+      `;
+      
+      if (data.mistakes && data.mistakes.length > 0) {
+        data.mistakes.forEach(m => {
+          html += `
+            <div class="auditor-mistake-item">
+              <div class="auditor-diff-grid">
+                <div>Wrong: <span class="auditor-diff-wrong">${escHtml(m.wrong)}</span></div>
+                <div style="color: var(--text-muted);">→</div>
+                <div>Correct: <span class="auditor-diff-right">${escHtml(m.right)}</span></div>
+              </div>
+              <div class="auditor-mistake-exp">${escHtml(m.explanation)}</div>
+            </div>
+          `;
+        });
+      } else {
+        html += `<p class="text-muted" style="font-size:0.88rem;">Minor stylistic tweaks suggested.</p>`;
+      }
+      
+      if (data.generalFeedback) {
+        html += `
+          <div style="margin-top: var(--space-md); padding-top: var(--space-md); border-top: 1px solid var(--border); font-size: 0.9rem; color: var(--text-secondary); line-height: 1.45;">
+            <strong>Feedback:</strong> ${escHtml(data.generalFeedback)}
+          </div>
+        `;
+      }
+      
+      html += `</div>`;
+    }
+    
+    resultsContainer.innerHTML = html;
+  }
+
   async function auditSentence() {
     const input = document.getElementById('auditor-input');
     const sentence = input?.value?.trim() || '';
@@ -1848,7 +1976,7 @@ const App = (() => {
     }
     
     if (!getGeminiKey()) {
-      showToast('Gemini API key is required.', 'error');
+      showToast('To scan custom sentences, please connect a free Gemini API Key in Settings. Try a Sandbox sentence below!', 'info');
       return;
     }
     
@@ -2111,6 +2239,46 @@ Do not include any markdown formatting wrappers (like \`\`\`json). Just return t
     updateSettingsStatusBadges(Translator.serverStatus);
     showToast(`Settings saved: using ${Translator.getActiveProviderName()}`, 'success');
     syncSettingsToFirebase();
+  }
+
+  async function testGeminiKey() {
+    const el = document.getElementById('setting-gemini-key');
+    const btn = document.getElementById('test-gemini-btn');
+    if (!el || !btn) return;
+
+    const key = el.value.trim();
+    if (!key) {
+      showToast('Please enter a Gemini API Key to test.', 'info');
+      return;
+    }
+
+    // Save key to test
+    const oldKey = GeminiClient.getKey();
+    GeminiClient.saveKey(key);
+
+    btn.disabled = true;
+    const oldText = btn.innerHTML;
+    btn.innerHTML = '⚡ Testing...';
+
+    try {
+      const response = await GeminiClient.callGemini('Say the word OK', false);
+      if (response && response.toUpperCase().includes('OK')) {
+        showToast('Gemini API connection successful!', 'success');
+        updateSettingsStatusBadges(Translator.serverStatus);
+      } else {
+        throw new Error('Unexpected response format.');
+      }
+    } catch (e) {
+      console.error(e);
+      showToast(`Connection failed: ${e.message}`, 'error');
+      // Revert to old key if testing fails
+      GeminiClient.saveKey(oldKey);
+      updateSettingsStatusBadges(Translator.serverStatus);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = oldText;
+      updateGeminiStatusUI();
+    }
   }
 
   function updateFirebasePreview() {
@@ -2582,7 +2750,7 @@ Do not include any markdown formatting wrappers (like \`\`\`json). Just return t
       return;
     }
     if (!getGeminiKey()) {
-      showToast('Add your Gemini API Key in settings to enable this feature!', 'info');
+      showToast('To write custom stories, please connect a free Gemini API Key in Settings. Try the Demo Story instead!', 'info');
       return;
     }
 
@@ -2637,6 +2805,57 @@ Do not include any markdown formatting wrappers (like \`\`\`json). Just return t
           <div style="text-align:center;"><button class="btn btn-primary btn-sm" onclick="App.generateAIStory()">Try Again</button></div>`;
       }
     }
+  }
+
+  let demoStoryToggle = false;
+  async function runStoryDemo() {
+    const container = document.getElementById('ai-story-container');
+    if (!container) return;
+
+    container.innerHTML = `<div style="display:flex; justify-content:center; align-items:center; padding:30px;"><div class="spinner"></div><span style="margin-left:10px;color:var(--text-muted);">Reading demo story...</span></div>`;
+
+    // Simulate load time
+    await new Promise(resolve => setTimeout(resolve, 800));
+
+    let highlightedDe = '';
+    let storyEn = '';
+    let demoWords = [];
+
+    if (demoStoryToggle) {
+      demoWords = [
+        { german: 'schön', english: 'beautiful' },
+        { german: 'spazieren', english: 'go for a walk' },
+        { german: 'Freund', english: 'friend' }
+      ];
+      highlightedDe = 'Heute ist das Wetter sehr <span style="color:var(--primary); font-weight:700;">schön</span>, und ich möchte im Park <span style="color:var(--primary); font-weight:700;">spazieren</span>. Ich treffe dort einen guten <span style="color:var(--primary); font-weight:700;">Freund</span>, und wir trinken zusammen einen Kaffee.';
+      storyEn = 'Today the weather is very beautiful, and I want to go for a walk in the park. I meet a good friend there, and we drink a coffee together.';
+    } else {
+      demoWords = [
+        { german: 'müde', english: 'tired' },
+        { german: 'Geschenk', english: 'gift' },
+        { german: 'spielen', english: 'play' }
+      ];
+      highlightedDe = 'Der Hund war gestern sehr <span style="color:var(--primary); font-weight:700;">müde</span>, also legte er sich in sein Körbchen. Seine Besitzerin brachte ihm ein <span style="color:var(--primary); font-weight:700;">Geschenk</span>, nämlich einen leckeren Knochen. Er begann sofort zu <span style="color:var(--primary); font-weight:700;">spielen</span> und wedelte glücklich mit dem Schwanz.';
+      storyEn = 'The dog was very tired yesterday, so he lay down in his basket. His owner brought him a gift, namely a tasty bone. He immediately started to play and wagged his tail happily.';
+    }
+
+    // Toggle next time
+    demoStoryToggle = !demoStoryToggle;
+
+    container.innerHTML = `
+      <div class="ai-story-card" style="text-align:left;">
+        <p class="ai-story-text-de" style="font-size:1.05rem; line-height:1.6; margin-bottom:1rem; color:var(--text-primary); font-family:'Outfit',sans-serif;">${highlightedDe}</p>
+        <button class="btn btn-ghost btn-sm" id="story-translate-btn" onclick="document.getElementById('ai-story-en').classList.toggle('hidden'); this.textContent = this.textContent.includes('Show') ? 'Hide Translation' : 'Show Translation'">Show Translation</button>
+        <p class="ai-story-text-en hidden" id="ai-story-en" style="margin-top:0.75rem; color:var(--text-muted); font-size:0.9rem; line-height:1.5;">${storyEn}</p>
+        <div style="margin-top:1.25rem; font-size:0.75rem; color:var(--text-muted); border-top:1px solid rgba(0,0,0,0.06); padding-top:8px; display:flex; flex-wrap:wrap; gap:4px; align-items:center;">
+          <span>Featured words:</span>
+          ${demoWords.map(w => `<span class="badge" style="background:rgba(14,190,255,0.08);color:var(--primary);">${escHtml(w.german)} (${escHtml(w.english)})</span>`).join('')}
+        </div>
+        <div style="margin-top:1.25rem; padding:10px; background:rgba(0,0,0,0.02); border-radius:6px; font-size:0.78rem; color:var(--text-muted); line-height:1.35;">
+          💡 Connect a free Gemini API Key in Settings to generate stories dynamically from your actual Word Bank!
+        </div>
+        <button class="btn btn-secondary btn-sm" style="margin-top:1rem; width:100%;" onclick="App.runStoryDemo()">🔄 View another demo story</button>
+      </div>`;
   }
 
   function applyBetterPhrasing(text) {
@@ -3158,9 +3377,10 @@ Do not include any markdown formatting wrappers (like \`\`\`json). Just return t
     explainMistake,
     nextQuestion,
     // AI Story
-    generateAIStory,
+    generateAIStory, runStoryDemo,
     saveGeminiKeyFromUI,
     updateGeminiStatusUI,
+    testGeminiKey,
     applyBetterPhrasing,
     analyzeGermanSentence,
     toggleVerbConjugations,
@@ -3168,7 +3388,7 @@ Do not include any markdown formatting wrappers (like \`\`\`json). Just return t
     // New exercise types
     startWordArrangement, waAddTile, waReset, waCheck,
     startMatch, matchSelectTile,
-    auditSentence, stopSentenceAuditor,
+    auditSentence, stopSentenceAuditor, runAuditorDemo,
     // Streak modal
     showStreakCelebration, closeStreakModal,
     // Collab Match

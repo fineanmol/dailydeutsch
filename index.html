@@ -7,10 +7,10 @@
   <title>Daily Deutsch: Build Your German Vocabulary</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="css/style.css?v=1.2.17" />
+  <link rel="stylesheet" href="css/style.css?v=1.2.18" />
   <link rel="manifest" href="manifest.json" />
-  <link rel="icon" type="image/png" href="icon.png?v=1.2.17" />
-  <link rel="apple-touch-icon" href="icon.png?v=1.2.17" />
+  <link rel="icon" type="image/png" href="icon.png?v=1.2.18" />
+  <link rel="apple-touch-icon" href="icon.png?v=1.2.18" />
   <script>
     (function() {
       const theme = localStorage.getItem('dd_theme') || 'system';
@@ -29,7 +29,7 @@
 <div id="login-screen" class="login-screen">
   <div class="login-card">
     <div class="login-logo">
-      <div class="login-logo-icon"><img src="icon.png?v=1.2.17" alt="Daily Deutsch Logo"></div>
+      <div class="login-logo-icon"><img src="icon.png?v=1.2.18" alt="Daily Deutsch Logo"></div>
       <span class="login-logo-text">Daily <span>Deutsch</span></span>
     </div>
     <p class="login-tagline">Build your German vocabulary,<br>one word at a time.</p>
@@ -188,7 +188,7 @@
 
       <!-- Logo -->
       <a href="#" class="logo" onclick="return false;">
-        <div class="logo-icon"><img src="icon.png?v=1.2.17" alt="Daily Deutsch Logo"></div>
+        <div class="logo-icon"><img src="icon.png?v=1.2.18" alt="Daily Deutsch Logo"></div>
         <span class="logo-text">Daily <span>Deutsch</span></span>
       </a>
 
@@ -680,11 +680,26 @@
           </p>
 
           <div class="auditor-warning-card hidden" id="auditor-key-warning">
-            <span>⚠️</span>
+            <span>💡</span>
             <div>
-              <strong>Gemini API Key Required:</strong> To scan your sentences with AI, please navigate to the 
-              <a href="#" onclick="App.navigateTo('settings'); return false;" style="color:var(--sky-blue); text-decoration:underline; font-weight:600;">Settings tab</a> 
-              and add your Gemini API Key first.
+              <strong>Gemini API Key Required:</strong> To scan your own sentences, please navigate to the 
+              <a href="#" onclick="App.navigateTo('settings'); return false;" style="color:var(--primary); text-decoration:underline; font-weight:600;">Settings tab</a> 
+              and add a free Gemini API Key. Or, try the **Demo Sandbox** below!
+            </div>
+          </div>
+
+          <div class="auditor-sandbox-container hidden" id="auditor-sandbox" style="margin-top: 12px; background: rgba(14,190,255,0.05); border: 1px solid rgba(14,190,255,0.15); padding: 12px; border-radius: var(--radius-md); margin-bottom: 12px;">
+            <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.05em;">🧪 Demo Sandbox (No Key Required)</div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <button class="btn btn-secondary btn-sm" onclick="App.runAuditorDemo('Ich gehen gestern nach Hause')" style="text-align: left; justify-content: flex-start; font-size: 0.85rem; font-weight: 500; padding: 10px;">
+                🔴 "Ich gehen gestern nach Hause" <span style="color: var(--text-muted); margin-left: 4px; font-weight: normal; font-size: 0.78rem;">(Grammar & placement errors)</span>
+              </button>
+              <button class="btn btn-secondary btn-sm" onclick="App.runAuditorDemo('Er hat das Buch gekaufen')" style="text-align: left; justify-content: flex-start; font-size: 0.85rem; font-weight: 500; padding: 10px;">
+                🔴 "Er hat das Buch gekaufen" <span style="color: var(--text-muted); margin-left: 4px; font-weight: normal; font-size: 0.78rem;">(Incorrect past participle form)</span>
+              </button>
+              <button class="btn btn-secondary btn-sm" onclick="App.runAuditorDemo('Der Hund ist sehr treu und groß')" style="text-align: left; justify-content: flex-start; font-size: 0.85rem; font-weight: 500; padding: 10px;">
+                🟢 "Der Hund ist sehr treu und groß" <span style="color: var(--text-muted); margin-left: 4px; font-weight: normal; font-size: 0.78rem;">(Perfect sentence)</span>
+              </button>
             </div>
           </div>
 
@@ -816,7 +831,10 @@
             <p style="color:var(--text-secondary); font-size:0.9rem; margin-bottom:1rem; line-height:1.45;" id="ai-story-description">
               Generate a custom German story utilizing words you've learned. Requires a Gemini API Key.
             </p>
-            <button class="btn btn-primary" onclick="App.generateAIStory()">✏️ Generate AI Story</button>
+            <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;" id="ai-story-actions">
+              <button class="btn btn-primary" onclick="App.generateAIStory()">✏️ Generate AI Story</button>
+              <button class="btn btn-secondary" id="story-demo-btn" onclick="App.runStoryDemo()">👁️ View Demo Story</button>
+            </div>
           </div>
         </div>
 
@@ -1058,20 +1076,26 @@
                   <option value="google">Force Google Translate</option>
                   <option value="mymemory">MyMemory (free, no key needed)</option>
                 </select>
+                <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 6px; line-height: 1.4;">
+                  Translations are active out-of-the-box using the free MyMemory service. DeepL and Google Translate are optional upgrades.
+                </p>
               </div>
 
               <div class="settings-form-row" style="margin-top:1rem;">
                 <label class="settings-label" style="display:flex; justify-content:space-between; align-items:center;">
                   Gemini API Key
-                  <a href="https://aistudio.google.com/" target="_blank" class="settings-help-link" style="font-size:0.75rem; text-decoration:underline;">Get a free key →</a>
+                  <a href="https://aistudio.google.com/" target="_blank" class="settings-help-link" style="font-size:0.75rem; text-decoration:underline; color: var(--primary);">Get a free key (takes 30 seconds) →</a>
                 </label>
                 <div class="settings-input-wrap">
                   <input class="input" id="setting-gemini-key" type="password" placeholder="AIzaSy… (paste key here)" autocomplete="off" />
                   <button class="btn btn-ghost btn-sm" onclick="togglePasswordVisibility('setting-gemini-key')" style="display:flex; align-items:center; justify-content:center;">👁</button>
                 </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
-                  <span style="font-size:0.75rem; color:var(--text-muted);">Status:</span>
-                  <span class="settings-api-badge badge--disabled" id="gemini-status-badge" style="font-size:0.7rem;">Disabled</span>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+                  <button class="btn btn-secondary btn-sm" id="test-gemini-btn" onclick="App.testGeminiKey()" style="padding: 5px 12px; font-size: 0.75rem; font-weight: 600;">⚡ Test Connection</button>
+                  <div style="display: flex; align-items: center; gap: 4px;">
+                    <span style="font-size:0.75rem; color:var(--text-muted);">Status:</span>
+                    <span class="settings-api-badge badge--disabled" id="gemini-status-badge" style="font-size:0.7rem;">Disabled</span>
+                  </div>
                 </div>
               </div>
 
@@ -1231,26 +1255,26 @@
   firebase.analytics();
 </script>
 
-<script src="js/analytics.js?v=1.2.17"></script>
+<script src="js/analytics.js?v=1.2.18"></script>
 
 <!-- Scripts (load order: Firebase globals must come first) -->
-<script src="js/motion.js?v=1.2.17"></script>
-<script src="js/auth.js?v=1.2.17"></script>
-<script src="js/db.js?v=1.2.17"></script>
-<script src="js/categories.js?v=1.2.17"></script>
-<script src="js/wordbank.js?v=1.2.17"></script>
-<script src="js/cefr.js?v=1.2.17"></script>
-<script src="js/translator.js?v=1.2.17"></script>
-<script src="js/exercises.js?v=1.2.17"></script>
-<script src="js/leaderboard.js?v=1.2.17"></script>
-<script src="js/insights.js?v=1.2.17"></script>
+<script src="js/motion.js?v=1.2.18"></script>
+<script src="js/auth.js?v=1.2.18"></script>
+<script src="js/db.js?v=1.2.18"></script>
+<script src="js/categories.js?v=1.2.18"></script>
+<script src="js/wordbank.js?v=1.2.18"></script>
+<script src="js/cefr.js?v=1.2.18"></script>
+<script src="js/translator.js?v=1.2.18"></script>
+<script src="js/exercises.js?v=1.2.18"></script>
+<script src="js/leaderboard.js?v=1.2.18"></script>
+<script src="js/insights.js?v=1.2.18"></script>
 <!-- Standalone modules (no cross-dependencies) -->
-<script src="js/profile.js?v=1.2.17"></script>
-<script src="js/language.js?v=1.2.17"></script>
-<script src="js/gemini.js?v=1.2.17"></script>
-<script src="js/ui.js?v=1.2.17"></script>
+<script src="js/profile.js?v=1.2.18"></script>
+<script src="js/language.js?v=1.2.18"></script>
+<script src="js/gemini.js?v=1.2.18"></script>
+<script src="js/ui.js?v=1.2.18"></script>
 <!-- App orchestrator (depends on all modules above) -->
-<script src="js/app.js?v=1.2.17"></script>
+<script src="js/app.js?v=1.2.18"></script>
 <script>
   function togglePasswordVisibility(inputId) {
     const el = document.getElementById(inputId);
