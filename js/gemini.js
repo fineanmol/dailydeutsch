@@ -63,7 +63,7 @@ const GeminiClient = (() => {
    * @returns {Promise<string|object>}
    */
   async function callGemini(prompt, responseJson = false, overrideKey = null) {
-    const key = overrideKey || getKey();
+    const key = overrideKey !== null ? overrideKey : getKey();
     const isFileProtocol = window.location.protocol === "file:";
 
     // With a user key we can call Gemini directly (and offline-from-server too).

@@ -70,11 +70,25 @@ const Translator = (() => {
   }
 
   function getActiveProviderName() {
-    if (_serverStatus) return _serverStatus.activeProvider || 'MyMemory';
     const s = loadSettings();
     const useCustomDeepl = localStorage.getItem('dd_use_custom_deepl') !== '0';
-    if ((s.provider === 'auto' || s.provider === 'deepl') && s.deeplKey && useCustomDeepl) return 'DeepL';
-    if ((s.provider === 'auto' || s.provider === 'google') && s.googleKey) return 'Google';
+    
+    // 1. Explicit provider selections
+    if (s.provider === 'deepl' && s.deeplKey && useCustomDeepl) return 'DeepL';
+    if (s.provider === 'google' && s.googleKey) return 'Google';
+    if (s.provider === 'mymemory') return 'MyMemory';
+    
+    // 2. Auto / default behavior
+    if (s.provider === 'auto' || s.provider === 'deepl') {
+      if (s.deeplKey && useCustomDeepl) return 'DeepL';
+      // If we don't have a custom key, check if the server has a key and we didn't disable DeepL
+      if (useCustomDeepl && _serverStatus && _serverStatus.hasDeeplKey) return 'DeepL';
+    }
+    
+    if (s.provider === 'auto' || s.provider === 'google') {
+      if (s.googleKey) return 'Google';
+    }
+    
     return 'MyMemory';
   }
 
@@ -82,11 +96,21 @@ const Translator = (() => {
   async function translateViaServer(text, from = 'en', to = 'de') {
     const settings = loadSettings();
     const useCustomDeepl = localStorage.getItem('dd_use_custom_deepl') !== '0';
+    
+    // Determine the provider to send to the server
+    let providerToSend = settings.provider;
+    if (providerToSend === 'auto' || providerToSend === 'deepl') {
+      if (!useCustomDeepl) {
+        // If DeepL is disabled by the user, force server to use mymemory (or google if they have a key)
+        providerToSend = settings.googleKey ? 'google' : 'mymemory';
+      }
+    }
+    
     const deeplKeyToSend = useCustomDeepl ? settings.deeplKey : '';
     const r = await fetch('/api/translate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, provider: settings.provider, from, to, deeplKey: deeplKeyToSend, googleKey: settings.googleKey }),
+      body: JSON.stringify({ text, provider: providerToSend, from, to, deeplKey: deeplKeyToSend, googleKey: settings.googleKey }),
     });
     if (!r.ok) throw new Error(`Server ${r.status}`);
     const data = await r.json();

@@ -391,18 +391,25 @@ const App = (() => {
     }
 
     // 1. DeepL
-    if (deeplKey && useCustomDeepl) {
-      if (deeplKey.includes('-') || deeplKey.length > 20) {
-        setStatus(deeplEl, 'Key Active', 'active');
+    if (useCustomDeepl) {
+      if (deeplKey) {
+        if (deeplKey.includes('-') || deeplKey.length > 20) {
+          setStatus(deeplEl, 'Key Active', 'active');
+        } else {
+          setStatus(deeplEl, 'Invalid Key', 'danger');
+        }
       } else {
-        setStatus(deeplEl, 'Invalid Key', 'danger');
+        const hasServer = serverStatus && serverStatus.hasDeeplKey;
+        setStatus(deeplEl, hasServer ? 'Active (Server)' : '—', hasServer ? 'active' : null);
       }
     } else {
       const hasServer = serverStatus && serverStatus.hasDeeplKey;
-      if (!useCustomDeepl && deeplKey) {
+      if (deeplKey) {
         setStatus(deeplEl, 'Disabled (Custom Key Off)', null);
+      } else if (hasServer) {
+        setStatus(deeplEl, 'Disabled (Server Key Off)', null);
       } else {
-        setStatus(deeplEl, hasServer ? 'Active (Server)' : '—', hasServer ? 'active' : null);
+        setStatus(deeplEl, '—', null);
       }
     }
 
