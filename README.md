@@ -26,8 +26,8 @@ Daily Deutsch is a premium, offline-first web application designed to help langu
 ## 🛠️ Technology Stack
 
 1. **Frontend**: Plain HTML5, custom CSS3 variable design systems, and modular IIFE vanilla JavaScript modules.
-2. **Backend**: Node.js & Express server for server-side API translations.
-3. **Database & Auth**: Firebase Auth (Google Sign-In + Anonymous Guests) and Cloud Firestore for cross-device database synchronization.
+2. **Database, Auth & AI trial**: Firebase Auth (Google Sign-In + Anonymous Guests) and Cloud Firestore for cross-device sync. The free AI trial is metered in Firestore and protected by Security Rules — **no backend required** (see [`TRIAL_SETUP.md`](TRIAL_SETUP.md)).
+3. **Optional local backend**: `server.js` (Node/Express) is an *optional* dev convenience that proxies DeepL/Google translation to keep keys off the client when running locally. The deployed Firebase site is fully static and falls back to free MyMemory translation.
 4. **Offline First**: Service Worker implementation pre-caching all assets for offline capabilities.
 
 ---
@@ -69,4 +69,9 @@ Open `http://localhost:3000` in your web browser.
 Deploy static pages directly to Firebase Hosting:
 ```bash
 npx firebase deploy --only hosting:dailydeutsch
+npx firebase deploy --only firestore:rules
 ```
+
+### 5. Free AI trial (one-time)
+To let users try the Gemini features without their own key, seed a single
+Firestore document with a low-limit trial key. See **[`TRIAL_SETUP.md`](TRIAL_SETUP.md)**.

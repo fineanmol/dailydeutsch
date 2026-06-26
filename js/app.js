@@ -107,12 +107,12 @@ const App = (() => {
   const isAIEnabled     = () => localStorage.getItem('dd_ai_enabled') !== '0';
 
   // ── Trial AI System ───────────────────────────────────────────
-  // The trial is now metered SERVER-SIDE (per authenticated user) in the
-  // /api/gemini proxy — no key or counter ships to the browser. The values
-  // below are only a UI mirror, kept in sync from the proxy's
-  // `X-Trial-Remaining` response header. The server is the source of truth.
-  const TRIAL_LIMIT = 3;
-  let _trialRemainingMirror = null;   // null = unknown until first call
+  // The free trial is metered in FIRESTORE (trialUsage/{uid}.count), guarded
+  // by security rules so it can't be reset client-side. No key ships in JS —
+  // the shared trial key lives in a protected Firestore doc. The values below
+  // are a UI mirror, synced from GeminiClient (which reads Firestore).
+  const TRIAL_LIMIT = GeminiClient.TRIAL_LIMIT;   // keep in lock-step with the client
+  let _trialRemainingMirror = null;   // null = unknown until first Firestore read
 
   function getTrialUsedCount() {
     if (getGeminiKey()) return 0;
@@ -312,8 +312,8 @@ const App = (() => {
       return GeminiClient.callGemini(prompt, json, customKey);
     }
 
-    // Free trial → server proxy. The server meters per-user and returns
-    // 429/TRIAL_EXHAUSTED when the allowance is spent.
+    // Free trial → Firestore-metered (trialUsage/{uid}). GeminiClient
+    // consumes one unit atomically and throws TRIAL_EXHAUSTED when spent.
     if (!hasTrialRemaining()) {
       showProInterestModal();
       throw new Error("TRIAL_EXHAUSTED");
@@ -321,7 +321,7 @@ const App = (() => {
 
     try {
       const res = await GeminiClient.callGemini(prompt, json);
-      // Sync the UI badge from the server's authoritative remaining count.
+      // Sync the UI badge from the authoritative remaining count (Firestore).
       setTrialRemaining(GeminiClient.getLastTrialRemaining());
       return res;
     } catch (err) {
@@ -329,6 +329,10 @@ const App = (() => {
         setTrialRemaining(0);
         showProInterestModal();
         throw new Error("TRIAL_EXHAUSTED");
+      }
+      if (err && err.code === "NOT_SIGNED_IN") {
+        showToast('Please sign in to use the free AI trial.', 'info');
+        throw err;
       }
       console.error("[App] Trial callGemini error:", err);
       if (err.message && (err.message.toLowerCase().includes("key not valid") || err.message.toLowerCase().includes("api key not valid"))) {
@@ -2748,6 +2752,14 @@ Do not include any markdown formatting wrappers (like \`\`\`json). Just return t
 
       showApp();
       updateUserProfile(user);
+
+      // Sync the free-trial remaining count from Firestore so badges are
+      // accurate on load (no-op if the user has their own key).
+      if (GeminiClient.refreshTrialRemaining) {
+        GeminiClient.refreshTrialRemaining()
+          .then(rem => { if (rem != null) setTrialRemaining(rem); })
+          .catch(() => {});
+      }
     } else {
       // Signed out
       DB.cleanup();

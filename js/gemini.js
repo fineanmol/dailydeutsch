@@ -11,18 +11,22 @@ const GeminiClient = (() => {
   const STORAGE_KEY = "mw_gemini_key";
   const MODEL_ID = "gemini-2.5-flash-lite";
   const API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
-  const PROXY_PATH = "/api/gemini";
+  const TRIAL_LIMIT = 5;          // lifetime free AI calls per signed-in account
 
-  // Mirror of the server's per-user trial allowance, parsed from the
-  // X-Trial-Remaining response header on the last proxy call. null = unknown.
+  // How many trial calls remain for the current account, derived from
+  // Firestore (trialUsage/{uid}.count). null = unknown until first read.
   let _lastTrialRemaining = null;
   function getLastTrialRemaining() { return _lastTrialRemaining; }
 
-  // NOTE: No API key is shipped to the browser. The free "trial" runs entirely
-  // through the server proxy (/api/gemini), which holds the real key in an env
-  // var and meters usage per authenticated user. A user may optionally supply
-  // their own key in Settings — that key is used for direct browser→Gemini
-  // calls and never leaves their device.
+  // NOTE: No API key is shipped in this file. There are two routes:
+  //   • The user's OWN key (Settings) → direct browser→Gemini, never leaves device.
+  //   • The free trial → the shared key lives in a protected Firestore doc
+  //     (config/trial), readable only while the account is under its lifetime
+  //     quota. Usage is metered in trialUsage/{uid} with Firestore rules that
+  //     only allow the counter to increase by 1 (no client resets), so clearing
+  //     localStorage cannot restore trials. This is the no-backend,
+  //     Firebase-free-tier design — no Cloud Functions / paid services needed.
+  let _cachedTrialKey = null;     // in-memory only; never persisted
 
   // ── Key Storage ───────────────────────────────────────────────
 
@@ -54,8 +58,8 @@ const GeminiClient = (() => {
   /**
    * Call Gemini. Two routes:
    *   • User-supplied key  → direct browser→Gemini request (key stays on device)
-   *   • No key (free tier) → server proxy /api/gemini, which holds the real key
-   *                          and meters the trial per authenticated user.
+   *   • No key (free trial) → consume one trial unit (Firestore-metered), fetch
+   *                           the shared trial key from Firestore, call directly.
    *
    * @param {string}  prompt
    * @param {boolean} responseJson  - If true, parse response as JSON.
@@ -64,67 +68,94 @@ const GeminiClient = (() => {
    */
   async function callGemini(prompt, responseJson = false, overrideKey = null) {
     const key = overrideKey !== null ? overrideKey : getKey();
-    const isFileProtocol = window.location.protocol === "file:";
 
-    // With a user key we can call Gemini directly (and offline-from-server too).
-    // Without a key we must go through the proxy; that requires a server.
-    if (!key && isFileProtocol) {
-      throw new Error(
-        "Free AI trial needs the app server. Add your own Gemini key in Settings to use AI here.",
-      );
+    if (key) {
+      // User's own key — unlimited, no trial accounting.
+      return _callWithRetry(() => _directRequest(prompt, responseJson, key), responseJson);
     }
 
-    const requestFn = key
-      ? () => _directRequest(prompt, responseJson, key)
-      : () => _proxyRequest(prompt, responseJson);
-
-    return _callWithRetry(requestFn, responseJson);
+    // Free trial. Consume a unit FIRST (atomic, rules-guarded), then fetch the
+    // shared key and call. Consuming first means a user can't read the key
+    // without it counting against their quota.
+    const trialKey = await _consumeTrialAndGetKey();
+    return _callWithRetry(() => _directRequest(prompt, responseJson, trialKey), responseJson);
   }
 
-  // ── Internal: Proxy (free trial — server holds the key) ───────
-
-  async function _proxyRequest(prompt, responseJson) {
-    const headers = { "Content-Type": "application/json" };
-
-    // Attach the Firebase ID token so the server can identify the user,
-    // meter the trial per-uid, and rate-limit. Falls back gracefully if
-    // auth isn't ready (server still enforces its own limits).
-    let idToken = null;
-    if (typeof Auth !== "undefined" && Auth.getIdToken) {
-      try { idToken = await Auth.getIdToken(); } catch { /* ignore */ }
+  // ── Internal: Free trial via Firestore ────────────────────────
+  // Increments trialUsage/{uid}.count (rules enforce +1, max TRIAL_LIMIT),
+  // then reads the shared key from config/trial (rules allow the read only
+  // while the account is within quota). Throws TRIAL_EXHAUSTED when spent.
+  async function _consumeTrialAndGetKey() {
+    if (typeof firebase === "undefined" || !firebase.firestore) {
+      throw new Error("AI features need an internet connection. Please try again online.");
     }
-    if (idToken) headers["Authorization"] = `Bearer ${idToken}`;
-
-    const r = await fetch(PROXY_PATH, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ prompt, responseJson }),
-    });
-
-    const contentType = r.headers.get("Content-Type") || "";
-    if (contentType.includes("text/html")) {
-      throw new Error(
-        "Free AI trial needs the app server. Please run the project locally (http://localhost:3000) or add your own Gemini key in Settings."
-      );
+    const uid = (typeof Auth !== "undefined" && Auth.getUid) ? Auth.getUid() : null;
+    if (!uid) {
+      const e = new Error("Please sign in to use the free AI trial.");
+      e.code = "NOT_SIGNED_IN";
+      throw e;
     }
 
-    if (!r.ok) {
-      const err = await r.json().catch(() => ({}));
-      // Surface the trial-exhausted signal so callers can show the upgrade modal.
-      if (r.status === 429 && (err?.error === "TRIAL_EXHAUSTED")) {
+    const db = firebase.firestore();
+    const usageRef = db.doc(`trialUsage/${uid}`);
+
+    // Atomically reserve one trial unit. The transaction (and the matching
+    // Firestore rules) guarantee count only ever goes up by 1 and never past
+    // the cap — so clearing localStorage / re-creating docs can't cheat it.
+    let usedAfter;
+    try {
+      usedAfter = await db.runTransaction(async (tx) => {
+        const snap = await tx.get(usageRef);
+        const current = snap.exists ? (snap.data().count || 0) : 0;
+        if (current >= TRIAL_LIMIT) {
+          const e = new Error("TRIAL_EXHAUSTED");
+          e.code = "TRIAL_EXHAUSTED";
+          throw e;
+        }
+        const next = current + 1;
+        tx.set(usageRef, { count: next, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+        return next;
+      });
+    } catch (err) {
+      if (err && err.code === "TRIAL_EXHAUSTED") {
         _lastTrialRemaining = 0;
-        const e = new Error(err?.detail || "TRIAL_EXHAUSTED");
-        e.code = "TRIAL_EXHAUSTED";
-        throw e;
+        throw err;
       }
-      throw new Error(err?.error || `HTTP ${r.status}`);
+      throw err;
     }
-    const remHeader = r.headers.get("X-Trial-Remaining");
-    if (remHeader != null) _lastTrialRemaining = Number(remHeader);
-    const data = await r.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) throw new Error("Empty response from Gemini");
-    return text;
+
+    _lastTrialRemaining = Math.max(0, TRIAL_LIMIT - usedAfter);
+
+    // Fetch the shared key (cached in memory for the session after first read).
+    if (!_cachedTrialKey) {
+      try {
+        const cfg = await db.doc("config/trial").get();
+        _cachedTrialKey = cfg.exists ? (cfg.data().key || "") : "";
+      } catch (e) {
+        throw new Error("The free AI trial is temporarily unavailable. Add your own Gemini key in Settings to continue.");
+      }
+    }
+    if (!_cachedTrialKey) {
+      throw new Error("The free AI trial isn't configured yet. Add your own Gemini key in Settings to use AI features.");
+    }
+    return _cachedTrialKey;
+  }
+
+  // Read current trial usage without consuming it — used to sync UI badges
+  // on load. Returns remaining count, or null if unknown/not signed in.
+  async function refreshTrialRemaining() {
+    if (getKey()) { _lastTrialRemaining = Infinity; return Infinity; }
+    if (typeof firebase === "undefined" || !firebase.firestore) return null;
+    const uid = (typeof Auth !== "undefined" && Auth.getUid) ? Auth.getUid() : null;
+    if (!uid) return null;
+    try {
+      const snap = await firebase.firestore().doc(`trialUsage/${uid}`).get();
+      const used = snap.exists ? (snap.data().count || 0) : 0;
+      _lastTrialRemaining = Math.max(0, TRIAL_LIMIT - used);
+      return _lastTrialRemaining;
+    } catch {
+      return null;
+    }
   }
 
   // ── Internal: Direct ──────────────────────────────────────────
@@ -193,10 +224,12 @@ const GeminiClient = (() => {
 
   return {
     MODEL_ID,
+    TRIAL_LIMIT,
     getKey,
     saveKey,
     cleanJsonString,
     callGemini,
     getLastTrialRemaining,
+    refreshTrialRemaining,
   };
 })();

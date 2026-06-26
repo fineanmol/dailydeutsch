@@ -44,5 +44,45 @@ service cloud.firestore {
         && request.resource.data.email.size() <= 254;
       allow read, update, delete: if false;
     }
+
+    // ── Free AI trial (no backend; quota-protected via rules) ─────
+    // Lifetime cap of TRIAL_LIMIT AI calls per signed-in account, tracked
+    // in trialUsage/{uid}. This collection is deliberately TOP-LEVEL (not
+    // under /users/**) so the strict guards below actually apply — the
+    // owner-wide /users rule would otherwise allow arbitrary writes.
+    function trialLimit() { return 5; }
+
+    match /trialUsage/{uid} {
+      // A user may only see their own usage.
+      allow read: if request.auth != null && request.auth.uid == uid;
+
+      // First call: create the counter at exactly 1.
+      allow create: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.count == 1
+        && request.resource.data.keys().hasOnly(['count', 'updatedAt']);
+
+      // Subsequent calls: count may ONLY increase by exactly 1, and never
+      // beyond the cap. No resets, no jumps, no decrements — so clearing
+      // localStorage or re-creating the doc can't restore trials.
+      allow update: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.count == resource.data.count + 1
+        && request.resource.data.count <= trialLimit()
+        && request.resource.data.keys().hasOnly(['count', 'updatedAt']);
+
+      allow delete: if false;
+    }
+
+    // The shared trial key. Readable ONLY by a signed-in user who still
+    // has trial budget left (their trialUsage counter is at/under the cap
+    // AFTER they've recorded the current use). Never writable from clients
+    // — it is seeded once via the Firebase console / admin.
+    match /config/trial {
+      allow read: if request.auth != null
+        && exists(/databases/$(database)/documents/trialUsage/$(request.auth.uid))
+        && get(/databases/$(database)/documents/trialUsage/$(request.auth.uid)).data.count <= trialLimit();
+      allow write: if false;
+    }
   }
 }
