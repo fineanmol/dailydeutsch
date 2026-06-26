@@ -12,6 +12,15 @@
 
 const App = (() => {
 
+  const STARTER_WORDS = [
+    { id: 'starter-1', german: 'der Hund', english: 'the dog', category: 'animals', partOfSpeech: 'noun', frequency: 1, lastUsed: new Date().toISOString() },
+    { id: 'starter-2', german: 'die Katze', english: 'the cat', category: 'animals', partOfSpeech: 'noun', frequency: 1, lastUsed: new Date().toISOString() },
+    { id: 'starter-3', german: 'der Apfel', english: 'the apple', category: 'food', partOfSpeech: 'noun', frequency: 1, lastUsed: new Date().toISOString() },
+    { id: 'starter-4', german: 'das Brot', english: 'the bread', category: 'food', partOfSpeech: 'noun', frequency: 1, lastUsed: new Date().toISOString() },
+    { id: 'starter-5', german: 'gehen', english: 'to go', category: 'general', partOfSpeech: 'verb', frequency: 1, lastUsed: new Date().toISOString() },
+    { id: 'starter-6', german: 'schnell', english: 'fast', category: 'general', partOfSpeech: 'adjective', frequency: 1, lastUsed: new Date().toISOString() },
+  ];
+
   // Determine Environment Mode immediately on script run
   const isProd = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
   document.body.classList.toggle('prod-mode', isProd);
@@ -89,9 +98,13 @@ const App = (() => {
   //    All Gemini logic lives in js/gemini.js (GeminiClient).
   //    These wrappers keep the existing call sites in this file working.
 
-  const getGeminiKey    = () => GeminiClient.getKey();
+  const getGeminiKey    = () => {
+    if (localStorage.getItem('dd_use_custom_gemini') === '0') return '';
+    return GeminiClient.getKey();
+  };
   const saveGeminiKey   = (k) => GeminiClient.saveKey(k);
   const cleanJsonString = (s) => GeminiClient.cleanJsonString(s);
+  const isAIEnabled     = () => localStorage.getItem('dd_ai_enabled') !== '0';
 
   // ── Trial AI System ───────────────────────────────────────────
   // The trial is now metered SERVER-SIDE (per authenticated user) in the
@@ -125,6 +138,18 @@ const App = (() => {
   }
 
   function updateTrialBadges() {
+    const aiEnabled = isAIEnabled();
+
+    // Toggle visibility of AI cards/entry points
+    const auditorCard = document.getElementById('mode-auditor');
+    if (auditorCard) {
+      auditorCard.classList.toggle('hidden', !aiEnabled);
+    }
+    const storyCard = document.getElementById('insights-ai-story-card');
+    if (storyCard) {
+      storyCard.classList.toggle('hidden', !aiEnabled);
+    }
+
     const count = getTrialUsedCount();
     const remaining = Math.max(0, TRIAL_LIMIT - count);
     const hasKey = !!getGeminiKey();
@@ -132,7 +157,7 @@ const App = (() => {
     const badgeText = hasKey ? "" : `(${remaining} left)`;
     document.querySelectorAll('.trial-badge').forEach(badge => {
       badge.textContent = badgeText;
-      badge.style.display = (hasKey || remaining === 0) ? 'none' : 'inline-block';
+      badge.style.display = (hasKey || remaining === 0 || !aiEnabled) ? 'none' : 'inline-block';
     });
 
     const storyDesc = document.getElementById('ai-story-description');
@@ -149,10 +174,10 @@ const App = (() => {
     const warning = document.getElementById('auditor-key-warning');
     const sandbox = document.getElementById('auditor-sandbox');
     if (warning) {
-      warning.classList.toggle('hidden', hasKey || remaining > 0);
+      warning.classList.toggle('hidden', hasKey || remaining > 0 || !aiEnabled);
     }
     if (sandbox) {
-      sandbox.classList.toggle('hidden', hasKey);
+      sandbox.classList.toggle('hidden', hasKey || !aiEnabled);
     }
   }
 
@@ -278,6 +303,9 @@ const App = (() => {
   }
 
   async function callGemini(prompt, json = false) {
+    if (!isAIEnabled()) {
+      throw new Error("AI features are disabled in Settings.");
+    }
     const customKey = getGeminiKey();
     // User's own key → direct call, unlimited, no trial accounting.
     if (customKey) {
@@ -303,6 +331,9 @@ const App = (() => {
         throw new Error("TRIAL_EXHAUSTED");
       }
       console.error("[App] Trial callGemini error:", err);
+      if (err.message && (err.message.toLowerCase().includes("key not valid") || err.message.toLowerCase().includes("api key not valid"))) {
+        throw new Error("The shared AI trial key has expired. Please add your own free Gemini API Key under Settings to unlock scans.");
+      }
       throw err;
     }
   }
@@ -333,7 +364,9 @@ const App = (() => {
     const s = Translator.loadSettings();
     const deeplKey = s.deeplKey || '';
     const googleKey = s.googleKey || '';
-    const geminiKey = getGeminiKey() || '';
+    const geminiKey = GeminiClient.getKey() || '';
+    const useCustomGemini = localStorage.getItem('dd_use_custom_gemini') !== '0';
+    const useCustomDeepl = localStorage.getItem('dd_use_custom_deepl') !== '0';
 
     const deeplEl   = document.getElementById('deepl-status');
     const googleEl  = document.getElementById('google-status');
@@ -358,7 +391,7 @@ const App = (() => {
     }
 
     // 1. DeepL
-    if (deeplKey) {
+    if (deeplKey && useCustomDeepl) {
       if (deeplKey.includes('-') || deeplKey.length > 20) {
         setStatus(deeplEl, 'Key Active', 'active');
       } else {
@@ -366,7 +399,11 @@ const App = (() => {
       }
     } else {
       const hasServer = serverStatus && serverStatus.hasDeeplKey;
-      setStatus(deeplEl, hasServer ? 'Active (Server)' : '—', hasServer ? 'active' : null);
+      if (!useCustomDeepl && deeplKey) {
+        setStatus(deeplEl, 'Disabled (Custom Key Off)', null);
+      } else {
+        setStatus(deeplEl, hasServer ? 'Active (Server)' : '—', hasServer ? 'active' : null);
+      }
     }
 
     // 2. Google Translate
@@ -383,14 +420,18 @@ const App = (() => {
 
     // 3. Gemini — your own key unlocks unlimited; otherwise the free trial
     //    runs through the server proxy.
-    if (geminiKey) {
+    if (geminiKey && useCustomGemini) {
       if (geminiKey.startsWith('AIzaSy') || geminiKey.length > 10) {
         setBadge(geminiBadge, 'Key Active', 'active');
       } else {
         setBadge(geminiBadge, 'Invalid Key', 'danger');
       }
     } else {
-      setBadge(geminiBadge, 'Free Trial', 'disabled');
+      if (!useCustomGemini && geminiKey) {
+        setBadge(geminiBadge, 'Disabled (Key Off)', 'disabled');
+      } else {
+        setBadge(geminiBadge, 'Free Trial', 'disabled');
+      }
     }
 
     // 4. Translation API provider badge (navbar)
@@ -487,7 +528,10 @@ const App = (() => {
     document.querySelectorAll(`[data-tab="${viewId}"]`).forEach(b => b.classList.add('active'));
     if (viewId === 'bank') renderWordBank();
     if (viewId === 'insights') Insights.render(WordBank.getStats());
-    if (viewId === 'exercises') renderExercisePicker();
+    if (viewId === 'exercises') {
+      stopExercise();
+      stopSentenceAuditor();
+    }
     if (viewId === 'settings') initBackendPage();
     updateTrialBadges();
   }
@@ -511,78 +555,9 @@ const App = (() => {
 
   // ── Settings ─────────────────────────────────────────────────
   function setupSettings() {
-    document.getElementById('settings-btn')?.addEventListener('click', openSettings);
-    document.getElementById('settings-close')?.addEventListener('click', closeSettings);
-    document.getElementById('settings-overlay')?.addEventListener('click', closeSettings);
-    document.getElementById('settings-save')?.addEventListener('click', saveSettingsFromForm);
-    document.getElementById('settings-reset')?.addEventListener('click', resetSettings);
-
-    // Load existing settings into form
-    const s = Translator.loadSettings();
-    const providerInput = document.getElementById('setting-provider');
-    const deeplInput = document.getElementById('setting-deepl-key');
-    const googleInput = document.getElementById('setting-google-key');
-    if (providerInput) providerInput.value = s.provider || 'auto';
-    if (deeplInput) deeplInput.value = s.deeplKey || '';
-    if (googleInput) googleInput.value = s.googleKey || '';
-  }
-
-  function openSettings() {
-    const isProdEnv = document.body.classList.contains('prod-mode');
-    if (isProdEnv) {
+    document.getElementById('settings-btn')?.addEventListener('click', () => {
       navigateTo('settings');
-    } else {
-      document.getElementById('settings-drawer')?.classList.add('open');
-      document.getElementById('settings-overlay')?.classList.add('open');
-    }
-  }
-
-  function closeSettings() {
-    document.getElementById('settings-drawer')?.classList.remove('open');
-    document.getElementById('settings-overlay')?.classList.remove('open');
-  }
-
-  function saveSettingsFromForm() {
-    const settings = {
-      provider: document.getElementById('setting-provider')?.value || 'auto',
-      deeplKey: document.getElementById('setting-deepl-key')?.value?.trim() || '',
-      googleKey: document.getElementById('setting-google-key')?.value?.trim() || '',
-    };
-    Translator.saveSettings(settings);
-    closeSettings();
-    updateProviderIndicator();
-
-    // Sync to backend page inputs immediately
-    const pgDeepl = document.getElementById('pg-deepl-key');
-    const pgGoogle = document.getElementById('pg-google-key');
-    const pgProvider = document.getElementById('settings-page-provider');
-    if (pgDeepl) pgDeepl.value = settings.deeplKey;
-    if (pgGoogle) pgGoogle.value = settings.googleKey;
-    if (pgProvider) pgProvider.value = settings.provider;
-    updateSettingsStatusBadges(Translator.serverStatus);
-
-    showToast(`Settings saved: using ${Translator.getActiveProviderName()}`, 'success');
-    syncSettingsToFirebase();
-  }
-
-  function resetSettings() {
-    Translator.saveSettings({ provider: 'auto', deeplKey: '', googleKey: '' });
-    document.getElementById('setting-provider').value = 'auto';
-    document.getElementById('setting-deepl-key').value = '';
-    document.getElementById('setting-google-key').value = '';
-
-    // Sync to backend page inputs immediately
-    const pgDeepl = document.getElementById('pg-deepl-key');
-    const pgGoogle = document.getElementById('pg-google-key');
-    const pgProvider = document.getElementById('settings-page-provider');
-    if (pgDeepl) pgDeepl.value = '';
-    if (pgGoogle) pgGoogle.value = '';
-    if (pgProvider) pgProvider.value = 'auto';
-    updateProviderIndicator();
-    updateSettingsStatusBadges(Translator.serverStatus);
-
-    showToast('Reset to MyMemory (free)', 'info');
-    syncSettingsToFirebase();
+    });
   }
 
   // ── Translator ───────────────────────────────────────────────
@@ -1134,7 +1109,7 @@ const App = (() => {
   }
 
   async function fetchAndAttachWordMetadata(wordId, german, english) {
-    if (!getGeminiKey()) return;
+    if (!isAIEnabled() || !getGeminiKey()) return;
     try {
       const prompt = `You are a ${getLearningLangName()} language assistant. Provide grammatical metadata for the ${getLearningLangName()} word "${german}" (meaning "${english}" in English).
       Return a JSON object with these EXACT keys:
@@ -1178,7 +1153,7 @@ const App = (() => {
     if (isNew) showToast(`"${word.german}" saved! ✨`, 'success');
     else showToast(`"${word.german}" (used ${word.frequency}× now)`, 'info');
 
-    if (isNew && getGeminiKey()) {
+    if (isNew && isAIEnabled() && getGeminiKey()) {
       fetchAndAttachWordMetadata(word.id, word.german, word.english);
     }
 
@@ -1371,8 +1346,8 @@ const App = (() => {
     if (emptyState && picker) {
       if (totalCount === 0) {
         emptyState.classList.remove('hidden');
-        picker.style.opacity = '0.35';
-        picker.style.pointerEvents = 'none';
+        picker.style.opacity = '';
+        picker.style.pointerEvents = '';
       } else {
         emptyState.classList.add('hidden');
         picker.style.opacity = '';
@@ -1380,30 +1355,28 @@ const App = (() => {
       }
     }
 
-    const countText = dueCount >= 4
-      ? `${dueCount} due for review`
-      : `${totalCount} total words`;
+    const countText = totalCount === 0
+      ? "6 starter words"
+      : (dueCount >= 4 ? `${dueCount} due for review` : `${totalCount} total words`);
 
     ['ex-word-count','ex-mc-count','ex-fitb-count','ex-arrangement-count'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.textContent = countText;
     });
     const matchCountEl = document.getElementById('ex-match-count');
-    if (matchCountEl) matchCountEl.textContent = Math.min(6, totalCount);
+    if (matchCountEl) matchCountEl.textContent = totalCount === 0 ? 6 : Math.min(6, totalCount);
     const mcStart = document.getElementById('start-mc');
-    if (mcStart) mcStart.disabled = totalCount < 4;
+    if (mcStart) mcStart.disabled = totalCount > 0 && totalCount < 4;
     const arrangementStart = document.getElementById('start-arrangement');
-    if (arrangementStart) arrangementStart.disabled = totalCount === 0;
+    if (arrangementStart) arrangementStart.disabled = false;
     const matchStart = document.getElementById('start-match');
-    if (matchStart) matchStart.disabled = totalCount < 2;
+    if (matchStart) matchStart.disabled = totalCount > 0 && totalCount < 2;
   }
 
   function setupExercises() {
     // Card clicks
     document.getElementById('mode-flashcard')?.addEventListener('click', (e) => {
       if (e.target.closest('.btn')) return;
-      const allWords = WordBank.getAllWords();
-      if (allWords.length === 0) return;
       startExercise('flashcard');
     });
     document.getElementById('start-flashcard')?.addEventListener('click', () => startExercise('flashcard'));
@@ -1411,7 +1384,7 @@ const App = (() => {
     document.getElementById('mode-mc')?.addEventListener('click', (e) => {
       if (e.target.closest('.btn')) return;
       const allWords = WordBank.getAllWords();
-      if (allWords.length < 4) {
+      if (allWords.length < 4 && allWords.length > 0) {
         showToast('Save at least 4 words to unlock Multiple Choice!', 'info');
         return;
       }
@@ -1421,8 +1394,6 @@ const App = (() => {
 
     document.getElementById('mode-fitb')?.addEventListener('click', (e) => {
       if (e.target.closest('.btn')) return;
-      const allWords = WordBank.getAllWords();
-      if (allWords.length === 0) return;
       startExercise('fitb');
     });
     document.getElementById('start-fitb')?.addEventListener('click', () => startExercise('fitb'));
@@ -1435,11 +1406,6 @@ const App = (() => {
 
     document.getElementById('mode-arrangement')?.addEventListener('click', (e) => {
       if (e.target.closest('.btn')) return;
-      const allWords = WordBank.getAllWords();
-      if (allWords.length === 0) {
-        showToast('Save some words to unlock this exercise!', 'info');
-        return;
-      }
       startWordArrangement();
     });
     document.getElementById('start-arrangement')?.addEventListener('click', () => startWordArrangement());
@@ -1447,7 +1413,7 @@ const App = (() => {
     document.getElementById('mode-match')?.addEventListener('click', (e) => {
       if (e.target.closest('.btn')) return;
       const allWords = WordBank.getAllWords();
-      if (allWords.length < 2) {
+      if (allWords.length < 2 && allWords.length > 0) {
         showToast('Save at least 2 words to play Match!', 'info');
         return;
       }
@@ -1483,7 +1449,7 @@ const App = (() => {
     }
 
     const explainBtn = document.getElementById('fb-explain-btn');
-    explainBtn.style.display = (canExplain && !correct) ? '' : 'none';
+    explainBtn.style.display = (canExplain && !correct && isAIEnabled()) ? '' : 'none';
     if (explainBtn.style.display !== 'none' && explainArgs) {
       explainBtn.onclick = () => {
         explainMistake(...explainArgs);
@@ -1504,15 +1470,18 @@ const App = (() => {
 
 
   function startExercise(mode) {
-    const allWords = WordBank.getAllWords();
-    if (allWords.length === 0) { showToast('Save some words first!', 'error'); return; }
+    let allWords = WordBank.getAllWords();
+    const isStarter = allWords.length === 0;
+    if (isStarter) {
+      allWords = STARTER_WORDS;
+    }
 
     if (typeof Analytics !== 'undefined') {
-      Analytics.logEvent('exercise_started', { exercise_type: mode });
+      Analytics.logEvent('exercise_started', { exercise_type: mode, starter_vocabulary: isStarter });
     }
 
     const today = new Date().toISOString().split('T')[0];
-    const dueWords = allWords.filter(w => !w.srsNextReview || w.srsNextReview <= today);
+    const dueWords = isStarter ? [] : allWords.filter(w => !w.srsNextReview || w.srsNextReview <= today);
     // Use due words if at least 4 are due, otherwise fall back to all words
     const words = dueWords.length >= 4 ? dueWords : allWords;
 
@@ -1522,6 +1491,8 @@ const App = (() => {
     document.getElementById('exercise-picker').classList.add('hidden');
     document.getElementById('exercise-area').classList.remove('hidden');
     document.getElementById('exercise-result-area').classList.add('hidden');
+    const emptyState = document.getElementById('exercises-empty-state');
+    if (emptyState) emptyState.classList.add('hidden');
     if (mode === 'flashcard') { state.exerciseQuestions = Exercises.generateFlashcards(words); renderFlashcard(); }
     else if (mode === 'mc') { state.exerciseQuestions = Exercises.generateMultipleChoice(words); renderMCQuestion(); }
     else if (mode === 'fitb') { state.exerciseQuestions = Exercises.generateFillBlank(words); renderFITBQuestion(); }
@@ -1779,8 +1750,10 @@ const App = (() => {
 
   // ── Word Arrangement Exercise ─────────────────────────────────
   function startWordArrangement() {
-    const allWords = WordBank.getAllWords();
-    if (allWords.length === 0) { showToast('Save some words first!', 'error'); return; }
+    let allWords = WordBank.getAllWords();
+    if (allWords.length === 0) {
+      allWords = STARTER_WORDS;
+    }
     state.exerciseMode = 'arrangement';
     state.exerciseIndex = 0;
     state.exerciseScore = 0;
@@ -1791,6 +1764,8 @@ const App = (() => {
     document.getElementById('exercise-area').classList.add('hidden');
     document.getElementById('exercise-result-area').classList.add('hidden');
     document.getElementById('word-arrangement-area').classList.remove('hidden');
+    const emptyState = document.getElementById('exercises-empty-state');
+    if (emptyState) emptyState.classList.add('hidden');
     renderWAQuestion();
   }
 
@@ -1900,7 +1875,10 @@ const App = (() => {
 
   // ── Match Exercise ────────────────────────────────────────────
   function startMatch() {
-    const allWords = WordBank.getAllWords();
+    let allWords = WordBank.getAllWords();
+    if (allWords.length === 0) {
+      allWords = STARTER_WORDS;
+    }
     if (allWords.length < 2) { showToast('Save at least 2 words first!', 'error'); return; }
     state.exerciseMode = 'match';
     state.matchPairs = Exercises.generateMatchPairs(allWords);
@@ -1913,6 +1891,8 @@ const App = (() => {
     document.getElementById('exercise-area').classList.add('hidden');
     document.getElementById('exercise-result-area').classList.add('hidden');
     document.getElementById('match-area').classList.remove('hidden');
+    const emptyState = document.getElementById('exercises-empty-state');
+    if (emptyState) emptyState.classList.add('hidden');
     renderMatch();
 
     state.matchTimer = setInterval(() => {
@@ -2126,6 +2106,21 @@ const App = (() => {
     if (submitBtn) submitBtn.disabled = false;
   }
 
+  function toggleAuditorSandbox() {
+    const wrap = document.getElementById('sandbox-buttons-wrap');
+    const icon = document.getElementById('sandbox-toggle-icon');
+    if (!wrap || !icon) return;
+
+    const isHidden = wrap.classList.contains('hidden');
+    if (isHidden) {
+      wrap.classList.remove('hidden');
+      icon.textContent = 'Hide Examples ▲';
+    } else {
+      wrap.classList.add('hidden');
+      icon.textContent = 'Show Examples ▼';
+    }
+  }
+
   function renderAuditorResults(data) {
     const resultsContainer = document.getElementById('auditor-results');
     if (!resultsContainer) return;
@@ -2313,30 +2308,37 @@ Do not include any markdown formatting wrappers (like \`\`\`json). Just return t
   async function initBackendPage() {
     updateGeminiStatusUI();
 
-    // Populate settings from localStorage
-    const s = Translator.loadSettings();
-    const pgProvider = document.getElementById('settings-page-provider');
-    const pgDeepl    = document.getElementById('pg-deepl-key');
-    const pgGoogle   = document.getElementById('pg-google-key');
-    if (pgProvider) pgProvider.value = s.provider  || 'auto';
-    if (pgDeepl)    pgDeepl.value    = s.deeplKey  || '';
-    if (pgGoogle)   pgGoogle.value   = s.googleKey || '';
-
     // Populate goals & preferences
     const cefrGoal = localStorage.getItem('dd_cefr_goal') || 'B1';
     const dailyGoal = localStorage.getItem('dd_daily_word_goal') || '5';
     const speechRate = localStorage.getItem('dd_speech_rate') || '1.0';
     const theme = localStorage.getItem('dd_theme') || 'system';
+    const nativeLang = localStorage.getItem('dd_native_lang') || 'en';
 
     const pgCefr = document.getElementById('settings-page-cefr-goal');
     const pgDaily = document.getElementById('settings-page-daily-word-goal');
     const pgSpeech = document.getElementById('settings-page-speech-rate');
     const pgTheme = document.getElementById('settings-page-theme');
+    const pgNative = document.getElementById('settings-page-native-lang');
 
     if (pgCefr) pgCefr.value = cefrGoal;
     if (pgDaily) pgDaily.value = dailyGoal;
     if (pgSpeech) pgSpeech.value = speechRate;
     if (pgTheme) pgTheme.value = theme;
+    if (pgNative) pgNative.value = nativeLang;
+
+    // Load DeepL key
+    const s = Translator.loadSettings();
+    const pgDeepl = document.getElementById('pg-deepl-key');
+    if (pgDeepl) pgDeepl.value = s.deeplKey || '';
+
+    // Load key checkbox states
+    const useCustomGemini = localStorage.getItem('dd_use_custom_gemini') !== '0';
+    const useCustomDeepl = localStorage.getItem('dd_use_custom_deepl') !== '0';
+    const pgUseGemini = document.getElementById('settings-page-use-custom-gemini');
+    const pgUseDeepl = document.getElementById('settings-page-use-custom-deepl');
+    if (pgUseGemini) pgUseGemini.checked = useCustomGemini;
+    if (pgUseDeepl) pgUseDeepl.checked = useCustomDeepl;
 
     const pgLang = document.getElementById('settings-page-learning-lang');
     if (pgLang) pgLang.value = localStorage.getItem('dd_learning_lang') || 'de';
@@ -2358,21 +2360,14 @@ Do not include any markdown formatting wrappers (like \`\`\`json). Just return t
   function saveGoalsSettings() {
     const cefr = document.getElementById('settings-page-cefr-goal')?.value || 'B1';
     const daily = document.getElementById('settings-page-daily-word-goal')?.value || '5';
-    const lang = document.getElementById('settings-page-learning-lang')?.value || 'de';
-    const oldLang = localStorage.getItem('dd_learning_lang') || 'de';
+    const nativeLang = document.getElementById('settings-page-native-lang')?.value || 'en';
 
     localStorage.setItem('dd_cefr_goal', cefr);
     localStorage.setItem('dd_daily_word_goal', daily);
+    localStorage.setItem('dd_current_level', cefr);
+    localStorage.setItem('dd_native_lang', nativeLang);
 
-    if (typeof LanguageSupport !== 'undefined') {
-      LanguageSupport.setLanguage(lang);
-    }
-
-    if (lang !== oldLang) {
-      state.translationDirection = 'en-' + lang;
-    }
-
-    showToast('Goals saved successfully!', 'success');
+    showToast('Learning and language goals saved!', 'success');
     
     // Re-render Insights if currently open
     if (typeof Insights !== 'undefined' && state.currentView === 'insights') {
@@ -2408,6 +2403,7 @@ Do not include any markdown formatting wrappers (like \`\`\`json). Just return t
       deeplKey: s.deeplKey || '',
       googleKey: s.googleKey || '',
       geminiKey: GeminiClient.getKey() || '',
+      aiEnabled: isAIEnabled() ? '1' : '0',
       cefrGoal: localStorage.getItem('dd_cefr_goal') || 'B1',
       dailyWordGoal: localStorage.getItem('dd_daily_word_goal') || '5',
       speechRate: localStorage.getItem('dd_speech_rate') || '1.0',
@@ -2427,12 +2423,23 @@ Do not include any markdown formatting wrappers (like \`\`\`json). Just return t
 
 
   function savePageSettings() {
+    const deeplKey = document.getElementById('pg-deepl-key')?.value?.trim() || '';
     const settings = {
-      provider: document.getElementById('settings-page-provider')?.value || 'auto',
-      deeplKey: document.getElementById('pg-deepl-key')?.value?.trim() || '',
-      googleKey: document.getElementById('pg-google-key')?.value?.trim() || '',
+      provider: 'auto',
+      deeplKey: deeplKey,
+      googleKey: '',
     };
     Translator.saveSettings(settings);
+
+    // Save key checkbox states
+    const pgUseGemini = document.getElementById('settings-page-use-custom-gemini');
+    const pgUseDeepl = document.getElementById('settings-page-use-custom-deepl');
+    localStorage.setItem('dd_use_custom_gemini', pgUseGemini && pgUseGemini.checked ? '1' : '0');
+    localStorage.setItem('dd_use_custom_deepl', pgUseDeepl && pgUseDeepl.checked ? '1' : '0');
+
+    // Save AI Enabled state
+    const enableAI = document.getElementById('settings-page-enable-ai')?.value || '1';
+    localStorage.setItem('dd_ai_enabled', enableAI);
 
     // Save Gemini Key
     const geminiKey = document.getElementById('setting-gemini-key')?.value?.trim() || '';
@@ -2441,23 +2448,14 @@ Do not include any markdown formatting wrappers (like \`\`\`json). Just return t
 
     if (typeof Analytics !== 'undefined') {
       Analytics.logEvent('settings_updated', {
-        provider: settings.provider,
-        has_deepl_key: !!settings.deeplKey,
-        has_google_key: !!settings.googleKey,
-        has_gemini_key: !!geminiKey
+        has_gemini_key: !!geminiKey,
+        has_deepl_key: !!deeplKey
       });
     }
 
-    // Also sync to drawer
-    const drawerProvider = document.getElementById('setting-provider');
-    const drawerDeepl = document.getElementById('setting-deepl-key');
-    const drawerGoogle = document.getElementById('setting-google-key');
-    if (drawerProvider) drawerProvider.value = settings.provider;
-    if (drawerDeepl) drawerDeepl.value = settings.deeplKey;
-    if (drawerGoogle) drawerGoogle.value = settings.googleKey;
     updateProviderIndicator();
     updateSettingsStatusBadges(Translator.serverStatus);
-    showToast(`Settings saved: using ${Translator.getActiveProviderName()}`, 'success');
+    showToast('Integrations & API configurations saved!', 'success');
     syncSettingsToFirebase();
   }
 
@@ -2666,8 +2664,9 @@ Do not include any markdown formatting wrappers (like \`\`\`json). Just return t
       // Init storage with uid (Firestore if available, localStorage fallback)
       await WordBank.init(user.uid, () => {
         // Re-render views when Firestore pushes updates
-        if (state.currentView === 'bank')     renderWordBank();
-        if (state.currentView === 'insights') Insights.render(WordBank.getStats());
+        if (state.currentView === 'bank')      renderWordBank();
+        if (state.currentView === 'insights')   Insights.render(WordBank.getStats());
+        if (state.currentView === 'exercises')  renderExercisePicker();
         updateNavStats();
       });
 
@@ -2686,6 +2685,7 @@ Do not include any markdown formatting wrappers (like \`\`\`json). Just return t
             GeminiClient.saveKey(remoteSettings.geminiKey || '');
 
             if (remoteSettings.cefrGoal) localStorage.setItem('dd_cefr_goal', remoteSettings.cefrGoal);
+            if (remoteSettings.aiEnabled) localStorage.setItem('dd_ai_enabled', remoteSettings.aiEnabled);
             if (remoteSettings.dailyWordGoal) localStorage.setItem('dd_daily_word_goal', remoteSettings.dailyWordGoal);
             if (remoteSettings.speechRate) localStorage.setItem('dd_speech_rate', remoteSettings.speechRate);
             if (remoteSettings.theme) {
@@ -2713,6 +2713,7 @@ Do not include any markdown formatting wrappers (like \`\`\`json). Just return t
 
             updateProviderIndicator();
             updateSettingsStatusBadges(Translator.serverStatus);
+            updateTrialBadges();
           } else {
             // First time login: push local keys to remote Firestore
             syncSettingsToFirebase();
@@ -2733,8 +2734,9 @@ Do not include any markdown formatting wrappers (like \`\`\`json). Just return t
       } else {
         // Subsequent auth changes: re-render data views
         updateNavStats();
-        if (state.currentView === 'bank')     renderWordBank();
-        if (state.currentView === 'insights') Insights.render(WordBank.getStats());
+        if (state.currentView === 'bank')      renderWordBank();
+        if (state.currentView === 'insights')   Insights.render(WordBank.getStats());
+        if (state.currentView === 'exercises')  renderExercisePicker();
       }
 
       showApp();
@@ -2743,6 +2745,13 @@ Do not include any markdown formatting wrappers (like \`\`\`json). Just return t
       // Signed out
       DB.cleanup();
       showLoginScreen();
+    }
+
+    // Fade out and remove the app initialization loader overlay
+    const loader = document.getElementById('app-init-loader');
+    if (loader) {
+      loader.style.opacity = '0';
+      setTimeout(() => loader.remove(), 400);
     }
   }
 
@@ -3676,7 +3685,7 @@ Do not include any markdown formatting wrappers (like \`\`\`json). Just return t
     // New exercise types
     startWordArrangement, waAddTile, waReset, waCheck,
     startMatch, matchSelectTile,
-    auditSentence, stopSentenceAuditor, runAuditorDemo,
+    auditSentence, stopSentenceAuditor, runAuditorDemo, toggleAuditorSandbox,
     // Streak modal
     showStreakCelebration, closeStreakModal,
     // Collab Match

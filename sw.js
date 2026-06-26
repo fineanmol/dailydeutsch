@@ -1,28 +1,25 @@
-const CACHE_NAME = 'daily-deutsch-v1.2.21';
+const CACHE_NAME = 'daily-deutsch-v1.2.32';
 const ASSETS = [
   './',
   './index.html',
-  './css/style.css?v=1.2.21',
-  './js/analytics.js?v=1.2.21',
-  './js/motion.js?v=1.2.21',
-  './js/auth.js?v=1.2.21',
-  './js/db.js?v=1.2.21',
-  './js/categories.js?v=1.2.21',
-  './js/wordbank.js?v=1.2.21',
-  './js/cefr.js?v=1.2.21',
-  './js/translator.js?v=1.2.21',
-  './js/exercises.js?v=1.2.21',
-  './js/leaderboard.js?v=1.2.21',
-  './js/insights.js?v=1.2.21',
-  './js/profile.js?v=1.2.21',
-  './js/language.js?v=1.2.21',
-  './js/gemini.js?v=1.2.21',
-  './js/ui.js?v=1.2.21',
-  './js/app.js?v=1.2.21',
-  './icon.png?v=1.2.21',
-  './icon-192.png',
-  './icon-512.png',
-  './icon-512-maskable.png',
+  './css/style.css?v=1.2.32',
+  './js/analytics.js?v=1.2.32',
+  './js/motion.js?v=1.2.32',
+  './js/auth.js?v=1.2.32',
+  './js/db.js?v=1.2.32',
+  './js/categories.js?v=1.2.32',
+  './js/wordbank.js?v=1.2.32',
+  './js/cefr.js?v=1.2.32',
+  './js/translator.js?v=1.2.32',
+  './js/exercises.js?v=1.2.32',
+  './js/leaderboard.js?v=1.2.32',
+  './js/insights.js?v=1.2.32',
+  './js/profile.js?v=1.2.32',
+  './js/language.js?v=1.2.32',
+  './js/gemini.js?v=1.2.32',
+  './js/ui.js?v=1.2.32',
+  './js/app.js?v=1.2.32',
+  './icon.png?v=1.2.32',
   './manifest.json'
 ];
 
@@ -51,45 +48,26 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  const url = e.request.url;
-
-  // Never intercept external API endpoints (live data must not be cached).
+  // Do not intercept external API endpoints
   if (
-    url.includes('firebase') ||
-    url.includes('googleapis') ||
-    url.includes('gstatic') ||
-    url.includes('mymemory.translated.net') ||
-    url.includes('/api/')
+    e.request.url.includes('firebase') ||
+    e.request.url.includes('googleapis') ||
+    e.request.url.includes('mymemory.translated.net')
   ) {
     return;
   }
 
-  // Network-first for navigations (the HTML shell) so a deployed update is
-  // picked up immediately instead of being pinned to a stale cached page.
-  // Falls back to cache when offline.
-  if (e.request.mode === 'navigate') {
-    e.respondWith(
-      fetch(e.request)
-        .then(resp => {
-          const copy = resp.clone();
-          caches.open(CACHE_NAME).then(c => c.put('./index.html', copy));
-          return resp;
-        })
-        .catch(() => caches.match('./index.html'))
-    );
-    return;
-  }
-
-  // Cache-first for everything else (assets are versioned via ?v= query).
   e.respondWith(
     caches.match(e.request).then(cachedResponse => {
-      if (cachedResponse) return cachedResponse;
+      if (cachedResponse) {
+        return cachedResponse;
+      }
       return fetch(e.request).then(response => {
         if (
           response &&
           response.status === 200 &&
           e.request.method === 'GET' &&
-          url.startsWith(self.location.origin)
+          e.request.url.startsWith(self.location.origin)
         ) {
           const cacheCopy = response.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(e.request, cacheCopy));
@@ -97,7 +75,10 @@ self.addEventListener('fetch', e => {
         return response;
       });
     }).catch(() => {
-      if (e.request.mode === 'navigate') return caches.match('./index.html');
+      // Fallback for offline loading of main page if match fails
+      if (e.request.mode === 'navigate') {
+        return caches.match('./index.html');
+      }
     })
   );
 });

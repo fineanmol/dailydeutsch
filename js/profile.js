@@ -34,29 +34,21 @@ const UserProfile = (() => {
   function initForm() {
     const data = load();
     const pgNative = document.getElementById('settings-page-native-lang');
-    const pgCurrent = document.getElementById('settings-page-current-level');
-    const pgReason = document.getElementById('settings-page-learning-reason');
-    const pgFocus = document.getElementById('settings-page-learning-focus');
-
     if (pgNative) pgNative.value = data.nativeLang;
-    if (pgCurrent) pgCurrent.value = data.currentLevel;
-    if (pgReason) pgReason.value = data.learningReason;
-    if (pgFocus) pgFocus.value = data.learningFocus;
   }
 
   /**
    * Saves profile fields from the UI inputs and triggers Firestore sync.
+   * Note: Merged into App.saveGoalsSettings but kept for compatibility.
    */
   function saveFromForm() {
     const nativeLang = document.getElementById('settings-page-native-lang')?.value || DEFAULTS.nativeLang;
-    const currentLevel = document.getElementById('settings-page-current-level')?.value || DEFAULTS.currentLevel;
-    const learningReason = document.getElementById('settings-page-learning-reason')?.value || DEFAULTS.learningReason;
-    const learningFocus = document.getElementById('settings-page-learning-focus')?.value || DEFAULTS.learningFocus;
+    const currentLevel = localStorage.getItem('dd_current_level') || DEFAULTS.currentLevel;
 
     localStorage.setItem('dd_native_lang', nativeLang);
     localStorage.setItem('dd_current_level', currentLevel);
-    localStorage.setItem('dd_learning_reason', learningReason);
-    localStorage.setItem('dd_learning_focus', learningFocus);
+    localStorage.setItem('dd_learning_reason', DEFAULTS.learningReason);
+    localStorage.setItem('dd_learning_focus', DEFAULTS.learningFocus);
 
     if (typeof UI !== 'undefined' && UI.showToast) {
       UI.showToast('Profile customizations saved!', 'success');

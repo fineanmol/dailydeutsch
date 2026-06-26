@@ -327,6 +327,7 @@ const WordBank = (() => {
     awardXP,
     checkBadges,
     unlockExerciseBadges,
+    getRootWordId,
   };
 
 })();

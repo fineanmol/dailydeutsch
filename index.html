@@ -7,10 +7,10 @@
   <title>Daily Deutsch: Build Your German Vocabulary</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="css/style.css?v=1.2.21" />
+  <link rel="stylesheet" href="css/style.css?v=1.2.32" />
   <link rel="manifest" href="manifest.json" />
-  <link rel="icon" type="image/png" href="icon.png?v=1.2.21" />
-  <link rel="apple-touch-icon" href="icon.png?v=1.2.21" />
+  <link rel="icon" type="image/png" href="icon.png?v=1.2.32" />
+  <link rel="apple-touch-icon" href="icon.png?v=1.2.32" />
   <script>
     (function() {
       const theme = localStorage.getItem('dd_theme') || 'system';
@@ -22,6 +22,18 @@
   </script>
 </head>
 <body class="light-mode">
+
+<!-- App initialization loader overlay -->
+<div id="app-init-loader" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0c1524; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 99999; transition: opacity 0.4s ease;">
+  <div style="width: 50px; height: 50px; border: 4px solid rgba(255,255,255,0.1); border-top-color: #38bdf8; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px;"></div>
+  <div style="font-family: system-ui, -apple-system, sans-serif; font-size: 1.1rem; color: #f8fafc; font-weight: 500;">Loading Daily Deutsch...</div>
+  <style>
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</div>
 
 <a href="#main-content" class="skip-link">Skip to main content</a>
 
@@ -61,128 +73,7 @@
   </div>
 </div>
 
-  <!-- ── Settings Overlay + Drawer ── -->
-  <div class="settings-overlay" id="settings-overlay"></div>
-  <aside class="settings-drawer" id="settings-drawer" aria-label="Settings panel">
-    <div class="settings-drawer-header">
-      <div class="settings-drawer-title">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-        </svg>
-        Settings
-      </div>
-      <button class="btn btn-ghost btn-icon" id="settings-close" aria-label="Close settings">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="18" y1="6" x2="6" y2="18"></line>
-          <line x1="6" y1="6" x2="18" y2="18"></line>
-        </svg>
-      </button>
-    </div>
 
-    <div class="settings-drawer-body">
-
-      <!-- Active API Status -->
-      <div class="settings-status-bar" id="settings-status-bar">
-        <span class="settings-status-dot" id="settings-status-dot"></span>
-        <span id="settings-status-text">Checking connection…</span>
-      </div>
-
-      <!-- Translation Provider -->
-      <div class="settings-section">
-        <div class="settings-section-title">Translation API</div>
-        <div class="settings-section-desc">
-          Add your own API key to get better, more accurate translations.
-          Without a key, MyMemory (free) is used automatically.
-        </div>
-
-        <label class="settings-label">Preferred Provider</label>
-        <select class="select" id="setting-provider">
-          <option value="auto">Auto (best available)</option>
-          <option value="deepl">DeepL</option>
-          <option value="google">Google Translate</option>
-          <option value="mymemory">MyMemory (free)</option>
-        </select>
-
-        <label class="settings-label" style="margin-top:1rem;">
-          DeepL API Key
-          <a href="https://www.deepl.com/pro-api" target="_blank" class="settings-help-link">Get free key →</a>
-        </label>
-        <div class="settings-input-wrap">
-          <input class="input" id="setting-deepl-key" type="password"
-            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx:fx"
-            autocomplete="off" spellcheck="false" />
-          <button class="btn btn-ghost btn-sm" onclick="togglePasswordVisibility('setting-deepl-key')" aria-label="Toggle visibility" style="display:flex; align-items:center; justify-content:center;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-              <circle cx="12" cy="12" r="3"></circle>
-            </svg>
-          </button>
-        </div>
-
-        <label class="settings-label" style="margin-top:1rem;">
-          Google Translate API Key
-          <a href="https://console.cloud.google.com/apis/library/translate.googleapis.com" target="_blank" class="settings-help-link">Get key →</a>
-        </label>
-        <div class="settings-input-wrap">
-          <input class="input" id="setting-google-key" type="password"
-            placeholder="AIzaSy…"
-            autocomplete="off" spellcheck="false" />
-          <button class="btn btn-ghost btn-sm" onclick="togglePasswordVisibility('setting-google-key')" aria-label="Toggle visibility" style="display:flex; align-items:center; justify-content:center;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-              <circle cx="12" cy="12" r="3"></circle>
-            </svg>
-          </button>
-        </div>
-
-        <button class="btn btn-primary w-full" style="margin-top:1.25rem;" id="settings-save">
-          Save & Apply
-        </button>
-        <button class="btn btn-ghost w-full" style="margin-top:0.5rem;" id="settings-reset">
-          Reset to free defaults
-        </button>
-      </div>
-
-      <!-- Firebase (Dev Only) -->
-      <div class="settings-section dev-only">
-        <div class="settings-section-title">Firebase</div>
-        <div class="settings-section-desc">
-          Connect Firebase to sync your word bank across devices.
-          Add your Firebase config to <code>.env</code> on the server,
-          or enter the values below for browser-only storage.
-        </div>
-        <div class="firebase-status-row" id="firebase-status-row">
-          <span id="firebase-status-icon" style="display:inline-flex; align-items:center;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color:var(--accent-green);">
-              <polyline points="20 6 9 17 4 12"></polyline>
-            </svg>
-          </span>
-          <span id="firebase-status-text">Firebase connected. Syncing to cloud</span>
-        </div>
-        <button class="btn btn-ghost btn-sm w-full" style="margin-top:0.75rem;"
-          onclick="App.navigateTo('settings')">
-          Open full backend settings →
-        </button>
-      </div>
-
-      <!-- Account -->
-      <div class="settings-section">
-        <div class="settings-section-title">Account</div>
-        <div class="settings-section-desc" id="settings-account-desc">Loading…</div>
-        <button class="btn btn-ghost btn-sm w-full" id="drawer-upgrade-btn"
-          onclick="App.upgradeToGoogle()" style="display:none;margin-bottom:0.5rem;">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px; vertical-align:middle;">
-            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-          </svg>Link Google Account
-        </button>
-        <button class="btn btn-danger w-full" onclick="App.signOut()">
-          Sign Out
-        </button>
-      </div>
-
-    </div>
-  </aside>
 
   <!-- ── Navbar ── -->
   <nav class="navbar">
@@ -207,13 +98,6 @@
           </svg>
           Translate
         </button>
-        <button class="nav-tab" data-tab="conjugator" id="tab-conjugator">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
-            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
-          </svg>
-          Conjugator
-        </button>
         <button class="nav-tab" data-tab="bank" id="tab-bank">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>
@@ -237,6 +121,13 @@
             <line x1="6" y1="20" x2="6" y2="14"/>
           </svg>
           Insights
+        </button>
+        <button class="nav-tab" data-tab="conjugator" id="tab-conjugator">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+          </svg>
+          Conjugator
         </button>
         <button class="nav-tab" data-tab="settings" id="tab-settings">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -524,12 +415,12 @@
       <div class="view" id="view-exercises">
 
         <!-- Exercises empty state (shown when word bank is empty) -->
-        <div id="exercises-empty-state" class="exercises-empty-state hidden">
-          <div class="exercises-empty-state-icon">🚀</div>
-          <h3>No words saved yet!</h3>
-          <p>Head to the <strong>Translate</strong> tab and save your first German word to unlock exercises automatically.</p>
-          <button class="btn btn-primary" onclick="App.navigateTo('translate')" style="gap:8px;">
-            Translate your first word →
+        <div id="exercises-empty-state" class="exercises-empty-state hidden" style="margin-bottom: 2rem;">
+          <div class="exercises-empty-state-icon">✨</div>
+          <h3>Your Word Bank is Empty</h3>
+          <p>Translate and save your own German words to generate personalized reviews, or try any exercise below right now using our <strong>Starter Vocabulary Set</strong>!</p>
+          <button class="btn btn-primary" onclick="App.navigateTo('translate')" style="gap:8px; margin: 0 auto;">
+            🔍 Go Translate &amp; Save Words
           </button>
         </div>
 
@@ -690,16 +581,19 @@
             </div>
           </div>
 
-          <div class="auditor-sandbox-container hidden" id="auditor-sandbox" style="margin-top: 12px; background: rgba(14,190,255,0.05); border: 1px solid rgba(14,190,255,0.15); padding: 12px; border-radius: var(--radius-md); margin-bottom: 12px;">
-            <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.05em;">🧪 Demo Sandbox (No Key Required)</div>
-            <div style="display: flex; flex-direction: column; gap: 8px;">
-              <button class="btn btn-secondary btn-sm" onclick="App.runAuditorDemo('Ich gehen gestern nach Hause')" style="text-align: left; justify-content: flex-start; font-size: 0.85rem; font-weight: 500; padding: 10px;">
-                🔴 "Ich gehen gestern nach Hause" <span style="color: var(--text-muted); margin-left: 4px; font-weight: normal; font-size: 0.78rem;">(Grammar & placement errors)</span>
+          <div class="auditor-sandbox-container hidden" id="auditor-sandbox" style="margin-top: 12px; background: var(--accent-blue-soft); border: 1px solid var(--border-accent); padding: 12px; border-radius: var(--radius-md); margin-bottom: 12px;">
+            <div onclick="App.toggleAuditorSandbox()" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none;">
+              <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">💡 Demo Sandbox</span>
+              <span id="sandbox-toggle-icon" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">Show Examples ▼</span>
+            </div>
+            <div id="sandbox-buttons-wrap" class="hidden" style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
+              <button class="btn btn-ghost btn-sm" onclick="App.runAuditorDemo('Ich gehen gestern nach Hause')" style="text-align: left; justify-content: flex-start; font-size: 0.85rem; font-weight: 500; padding: 10px; border: 1px solid var(--border); white-space: normal; width: 100%; word-break: break-word;">
+                🔴 "Ich gehen gestern nach Hause" <span style="color: var(--text-muted); margin-left: 4px; font-weight: normal; font-size: 0.78rem;">(Grammar &amp; placement errors)</span>
               </button>
-              <button class="btn btn-secondary btn-sm" onclick="App.runAuditorDemo('Er hat das Buch gekaufen')" style="text-align: left; justify-content: flex-start; font-size: 0.85rem; font-weight: 500; padding: 10px;">
+              <button class="btn btn-ghost btn-sm" onclick="App.runAuditorDemo('Er hat das Buch gekaufen')" style="text-align: left; justify-content: flex-start; font-size: 0.85rem; font-weight: 500; padding: 10px; border: 1px solid var(--border); white-space: normal; width: 100%; word-break: break-word;">
                 🔴 "Er hat das Buch gekaufen" <span style="color: var(--text-muted); margin-left: 4px; font-weight: normal; font-size: 0.78rem;">(Incorrect past participle form)</span>
               </button>
-              <button class="btn btn-secondary btn-sm" onclick="App.runAuditorDemo('Der Hund ist sehr treu und groß')" style="text-align: left; justify-content: flex-start; font-size: 0.85rem; font-weight: 500; padding: 10px;">
+              <button class="btn btn-ghost btn-sm" onclick="App.runAuditorDemo('Der Hund ist sehr treu und groß')" style="text-align: left; justify-content: flex-start; font-size: 0.85rem; font-weight: 500; padding: 10px; border: 1px solid var(--border); white-space: normal; width: 100%; word-break: break-word;">
                 🟢 "Der Hund ist sehr treu und groß" <span style="color: var(--text-muted); margin-left: 4px; font-weight: normal; font-size: 0.78rem;">(Perfect sentence)</span>
               </button>
             </div>
@@ -828,7 +722,7 @@
         </div>
 
         <!-- AI Reading Story Practice -->
-        <div class="chart-card" style="margin-top:1.5rem;">
+        <div class="chart-card" id="insights-ai-story-card" style="margin-top:1.5rem;">
           <div class="chart-title">📖 Practice Reading in Context</div>
           <div id="ai-story-container" style="text-align:center; padding:1.25rem;">
             <p style="color:var(--text-secondary); font-size:0.9rem; margin-bottom:1rem; line-height:1.45;" id="ai-story-description">
@@ -908,7 +802,7 @@
             </div>
           </div>
 
-          <!-- 2. Language & Learning Goals -->
+          <!-- 2. Learning & Language Goals -->
           <div class="settings-page-card">
             <div class="settings-page-card-header">
               <span class="settings-page-card-icon">
@@ -919,8 +813,8 @@
                 </svg>
               </span>
               <div>
-                <div class="settings-page-card-title">Learning Goals</div>
-                <div class="settings-page-card-sub">Define your learning path and daily targets</div>
+                <div class="settings-page-card-title">Learning &amp; Language</div>
+                <div class="settings-page-card-sub">Define your learning level, targets, and native language</div>
               </div>
             </div>
             <div class="settings-form">
@@ -931,7 +825,7 @@
               </div>
               <div class="settings-form-row">
                 <label class="settings-label" for="settings-page-cefr-goal">Target German Level (CEFR)</label>
-                <select class="select" id="settings-page-cefr-goal">
+                <select class="select" id="settings-page-cefr-goal" onchange="App.saveGoalsSettings()">
                   <option value="A1">A1: Beginner</option>
                   <option value="A2">A2: Elementary</option>
                   <option value="B1">B1: Intermediate (Recommended)</option>
@@ -942,37 +836,16 @@
               </div>
               <div class="settings-form-row">
                 <label class="settings-label" for="settings-page-daily-word-goal">Daily Vocabulary Word Goal</label>
-                <select class="select" id="settings-page-daily-word-goal">
+                <select class="select" id="settings-page-daily-word-goal" onchange="App.saveGoalsSettings()">
                   <option value="3">3 words per day (Easy)</option>
                   <option value="5">5 words per day (Medium)</option>
                   <option value="10">10 words per day (Serious)</option>
                   <option value="20">20 words per day (Superhuman)</option>
                 </select>
               </div>
-              <button class="btn btn-primary" style="width:100%; margin-top:0.5rem;" onclick="App.saveGoalsSettings()">
-                Save Goals
-              </button>
-            </div>
-          </div>
-
-          <!-- 2.5 Learner Profile Customization -->
-          <div class="settings-page-card">
-            <div class="settings-page-card-header">
-              <span class="settings-page-card-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="var(--sky-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 22px; height: 22px; display: block;">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                  <circle cx="12" cy="7" r="4"></circle>
-                </svg>
-              </span>
-              <div>
-                <div class="settings-page-card-title">Learner Profile</div>
-                <div class="settings-page-card-sub">Customize your profile &amp; showcase details on the leaderboard</div>
-              </div>
-            </div>
-            <div class="settings-form">
               <div class="settings-form-row">
                 <label class="settings-label" for="settings-page-native-lang">Native Language</label>
-                <select class="select" id="settings-page-native-lang">
+                <select class="select" id="settings-page-native-lang" onchange="App.saveGoalsSettings()">
                   <option value="en">English 🇬🇧</option>
                   <option value="es">Spanish 🇪🇸</option>
                   <option value="fr">French 🇫🇷</option>
@@ -985,38 +858,6 @@
                   <option value="it">Italian 🇮🇹</option>
                 </select>
               </div>
-              <div class="settings-form-row">
-                <label class="settings-label" for="settings-page-current-level">Self-Assessed German Level</label>
-                <select class="select" id="settings-page-current-level">
-                  <option value="A1">A1: Absolute Beginner</option>
-                  <option value="A2">A2: Beginner</option>
-                  <option value="B1">B1: Intermediate</option>
-                  <option value="B2">B2: Upper Intermediate</option>
-                  <option value="C1">C1: Advanced</option>
-                  <option value="C2">C2: Master / Fluent</option>
-                </select>
-              </div>
-              <div class="settings-form-row">
-                <label class="settings-label" for="settings-page-learning-reason">Primary Learning Reason</label>
-                <select class="select" id="settings-page-learning-reason">
-                  <option value="job">Career &amp; Work 💼</option>
-                  <option value="travel">Travel &amp; Culture ✈️</option>
-                  <option value="exam">Exam Preparation 📝</option>
-                  <option value="hobby">Hobby &amp; Family 🎨</option>
-                </select>
-              </div>
-              <div class="settings-form-row">
-                <label class="settings-label" for="settings-page-learning-focus">Learning Focus Area</label>
-                <select class="select" id="settings-page-learning-focus">
-                  <option value="vocab">Vocabulary Expansion 🌱</option>
-                  <option value="speaking">Speaking &amp; Pronunciation 🗣️</option>
-                  <option value="grammar">Grammar &amp; Structure 📚</option>
-                  <option value="listening">Listening &amp; Auditory 🎧</option>
-                </select>
-              </div>
-              <button class="btn btn-primary" style="width:100%; margin-top:0.5rem;" onclick="UserProfile.saveFromForm()">
-                Save Profile
-              </button>
             </div>
           </div>
 
@@ -1037,7 +878,7 @@
             <div class="settings-form">
               <div class="settings-form-row">
                 <label class="settings-label" for="settings-page-speech-rate">Pronunciation (TTS) Speed</label>
-                <select class="select" id="settings-page-speech-rate">
+                <select class="select" id="settings-page-speech-rate" onchange="App.savePreferencesSettings()">
                   <option value="0.75">Slow (0.75x)</option>
                   <option value="1.0">Normal (1.0x)</option>
                   <option value="1.25">Fast (1.25x)</option>
@@ -1045,19 +886,16 @@
               </div>
               <div class="settings-form-row">
                 <label class="settings-label" for="settings-page-theme">App Theme</label>
-                <select class="select" id="settings-page-theme">
+                <select class="select" id="settings-page-theme" onchange="App.savePreferencesSettings()">
                   <option value="light">Light Mode</option>
                   <option value="dark">Dark Mode</option>
                   <option value="system">System Default</option>
                 </select>
               </div>
-              <button class="btn btn-primary" style="width:100%; margin-top:0.5rem;" onclick="App.savePreferencesSettings()">
-                Save Preferences
-              </button>
             </div>
           </div>
 
-          <!-- 4. Translation & AI Integrations (API Keys) -->
+          <!-- 4. Gemini & DeepL Integration -->
           <div class="settings-page-card">
             <div class="settings-page-card-header">
               <span class="settings-page-card-icon">
@@ -1066,21 +904,19 @@
                 </svg>
               </span>
               <div>
-                <div class="settings-page-card-title">API Keys &amp; Custom Services</div>
-                <div class="settings-page-card-sub">Add custom keys for advanced Gemini AI and translation features</div>
+                <div class="settings-page-card-title">Gemini &amp; DeepL Integration</div>
+                <div class="settings-page-card-sub">Enable advanced features and configure your API keys</div>
               </div>
             </div>
             <div class="settings-form">
               <div class="settings-form-row">
-                <label class="settings-label">Preferred Translation Provider</label>
-                <select class="select" id="settings-page-provider">
-                  <option value="auto">Auto (best available)</option>
-                  <option value="deepl">Force DeepL</option>
-                  <option value="google">Force Google Translate</option>
-                  <option value="mymemory">MyMemory (free, no key needed)</option>
+                <label class="settings-label">AI Features (Sentence Auditor, Stories)</label>
+                <select class="select" id="settings-page-enable-ai" onchange="App.savePageSettings()">
+                  <option value="1">Enabled (Uses Gemini / Trial Keys)</option>
+                  <option value="0">Disabled (Completely Free, No Key Needed)</option>
                 </select>
                 <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 6px; line-height: 1.4;">
-                  Translations are active out-of-the-box using the free MyMemory service. DeepL and Google Translate are optional upgrades.
+                  If disabled, all AI elements are hidden, and the app runs in standard mode without using Gemini keys.
                 </p>
               </div>
 
@@ -1092,6 +928,10 @@
                 <div class="settings-input-wrap">
                   <input class="input" id="setting-gemini-key" type="password" placeholder="AIzaSy… (paste key here)" autocomplete="off" />
                   <button class="btn btn-ghost btn-sm" onclick="togglePasswordVisibility('setting-gemini-key')" style="display:flex; align-items:center; justify-content:center;">👁</button>
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px; margin-top: 8px;">
+                  <input type="checkbox" id="settings-page-use-custom-gemini" style="width: 15px; height: 15px; accent-color: var(--primary); cursor: pointer;" checked />
+                  <label for="settings-page-use-custom-gemini" style="font-size: 0.8rem; cursor: pointer; color: var(--text-primary); user-select: none;">Enable Custom Gemini Key</label>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
                   <button class="btn btn-secondary btn-sm" id="test-gemini-btn" onclick="App.testGeminiKey()" style="padding: 5px 12px; font-size: 0.75rem; font-weight: 600;">⚡ Test Connection</button>
@@ -1111,24 +951,13 @@
                   <input class="input" id="pg-deepl-key" type="password" placeholder="xxxxxxx-xxxx... (stored locally)" autocomplete="off" />
                   <button class="btn btn-ghost btn-sm" onclick="togglePasswordVisibility('pg-deepl-key')" style="display:flex; align-items:center; justify-content:center;">👁</button>
                 </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+                <div style="display: flex; align-items: center; gap: 6px; margin-top: 8px;">
+                  <input type="checkbox" id="settings-page-use-custom-deepl" style="width: 15px; height: 15px; accent-color: var(--primary); cursor: pointer;" checked />
+                  <label for="settings-page-use-custom-deepl" style="font-size: 0.8rem; cursor: pointer; color: var(--text-primary); user-select: none;">Enable Custom DeepL Key</label>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
                   <span style="font-size:0.75rem; color:var(--text-muted);">Status:</span>
                   <span class="settings-api-status" id="deepl-status">-</span>
-                </div>
-              </div>
-
-              <div class="settings-form-row" style="margin-top:1rem;">
-                <label class="settings-label" style="display:flex; justify-content:space-between; align-items:center;">
-                  Google Translate API Key
-                  <a href="https://console.cloud.google.com/apis/library/translate.googleapis.com" target="_blank" class="settings-help-link" style="font-size:0.75rem; text-decoration:underline;">Enable API →</a>
-                </label>
-                <div class="settings-input-wrap">
-                  <input class="input" id="pg-google-key" type="password" placeholder="AIzaSy… (stored locally)" autocomplete="off" />
-                  <button class="btn btn-ghost btn-sm" onclick="togglePasswordVisibility('pg-google-key')" style="display:flex; align-items:center; justify-content:center;">👁</button>
-                </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
-                  <span style="font-size:0.75rem; color:var(--text-muted);">Status:</span>
-                  <span class="settings-api-status" id="google-status">-</span>
                 </div>
               </div>
 
@@ -1195,13 +1024,6 @@
         </svg>
         Translate
       </button>
-      <button class="mobile-nav-btn" data-tab="conjugator">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
-          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
-        </svg>
-        Conjugator
-      </button>
       <button class="mobile-nav-btn" data-tab="bank">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>
@@ -1224,6 +1046,13 @@
           <line x1="6" y1="20" x2="6" y2="14"/>
         </svg>
         Insights
+      </button>
+      <button class="mobile-nav-btn" data-tab="conjugator">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+        </svg>
+        Conjugator
       </button>
       <button class="mobile-nav-btn" data-tab="settings">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1258,26 +1087,26 @@
   firebase.analytics();
 </script>
 
-<script src="js/analytics.js?v=1.2.21"></script>
+<script src="js/analytics.js?v=1.2.32"></script>
 
 <!-- Scripts (load order: Firebase globals must come first) -->
-<script src="js/motion.js?v=1.2.21"></script>
-<script src="js/auth.js?v=1.2.21"></script>
-<script src="js/db.js?v=1.2.21"></script>
-<script src="js/categories.js?v=1.2.21"></script>
-<script src="js/wordbank.js?v=1.2.21"></script>
-<script src="js/cefr.js?v=1.2.21"></script>
-<script src="js/translator.js?v=1.2.21"></script>
-<script src="js/exercises.js?v=1.2.21"></script>
-<script src="js/leaderboard.js?v=1.2.21"></script>
-<script src="js/insights.js?v=1.2.21"></script>
+<script src="js/motion.js?v=1.2.32"></script>
+<script src="js/auth.js?v=1.2.32"></script>
+<script src="js/db.js?v=1.2.32"></script>
+<script src="js/categories.js?v=1.2.32"></script>
+<script src="js/wordbank.js?v=1.2.32"></script>
+<script src="js/cefr.js?v=1.2.32"></script>
+<script src="js/translator.js?v=1.2.32"></script>
+<script src="js/exercises.js?v=1.2.32"></script>
+<script src="js/leaderboard.js?v=1.2.32"></script>
+<script src="js/insights.js?v=1.2.32"></script>
 <!-- Standalone modules (no cross-dependencies) -->
-<script src="js/profile.js?v=1.2.21"></script>
-<script src="js/language.js?v=1.2.21"></script>
-<script src="js/gemini.js?v=1.2.21"></script>
-<script src="js/ui.js?v=1.2.21"></script>
+<script src="js/profile.js?v=1.2.32"></script>
+<script src="js/language.js?v=1.2.32"></script>
+<script src="js/gemini.js?v=1.2.32"></script>
+<script src="js/ui.js?v=1.2.32"></script>
 <!-- App orchestrator (depends on all modules above) -->
-<script src="js/app.js?v=1.2.21"></script>
+<script src="js/app.js?v=1.2.32"></script>
 <script>
   function togglePasswordVisibility(inputId) {
     const el = document.getElementById(inputId);

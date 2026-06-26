@@ -72,7 +72,8 @@ const Translator = (() => {
   function getActiveProviderName() {
     if (_serverStatus) return _serverStatus.activeProvider || 'MyMemory';
     const s = loadSettings();
-    if ((s.provider === 'auto' || s.provider === 'deepl') && s.deeplKey) return 'DeepL';
+    const useCustomDeepl = localStorage.getItem('dd_use_custom_deepl') !== '0';
+    if ((s.provider === 'auto' || s.provider === 'deepl') && s.deeplKey && useCustomDeepl) return 'DeepL';
     if ((s.provider === 'auto' || s.provider === 'google') && s.googleKey) return 'Google';
     return 'MyMemory';
   }
@@ -80,10 +81,12 @@ const Translator = (() => {
   // ── Translate via backend (/api/translate) ────────────────────
   async function translateViaServer(text, from = 'en', to = 'de') {
     const settings = loadSettings();
+    const useCustomDeepl = localStorage.getItem('dd_use_custom_deepl') !== '0';
+    const deeplKeyToSend = useCustomDeepl ? settings.deeplKey : '';
     const r = await fetch('/api/translate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, provider: settings.provider, from, to, deeplKey: settings.deeplKey, googleKey: settings.googleKey }),
+      body: JSON.stringify({ text, provider: settings.provider, from, to, deeplKey: deeplKeyToSend, googleKey: settings.googleKey }),
     });
     if (!r.ok) throw new Error(`Server ${r.status}`);
     const data = await r.json();
