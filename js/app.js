@@ -281,7 +281,7 @@ const App = (() => {
       
       showModal("Thank You! 🎉", `
         <div style="text-align: center; line-height: 1.5; padding: 10px;">
-          <p style="margin-bottom: 1.25rem;">We have saved your email: <strong>${escHtml(email)}</strong>. We will let you know as soon as the Pro options are available!</p>
+          <p style="margin-bottom: 1.25rem;">Thank you for your interest. <strong>${escHtml(email)}</strong>. We will let you know as soon as the Pro options are available!</p>
           <p style="margin-bottom: 1.5rem; color: var(--text-muted); font-size: 0.88rem;">In the meantime, you can easily connect your own free API key under Settings to unlock unlimited AI features right away.</p>
           <button class="btn btn-primary w-full" onclick="App.closeModal()">Close</button>
         </div>
