@@ -17,6 +17,101 @@ const Translator = (() => {
   const translationCache = new Map();
   const levelVariationsCache = new Map();
 
+  // ── Paid-tier shared translator (Google, browser-callable) ────
+  // On static Firebase Hosting (no backend) we can't proxy DeepL — DeepL's
+  // API has no CORS headers and rejects browser calls. Google Translate v2
+  // DOES allow browser calls with ?key=, so the paid tier uses the shared
+  // GOOGLE_KEY stored in Firestore (config/trial.GOOGLE_KEY), gated by a
+  // per-user entitlement flag + a per-account usage cap (translateUsage/{uid}),
+  // mirroring the Gemini trial design. See TRIAL_SETUP.md.
+  const GOOGLE_ENDPOINT = 'https://translation.googleapis.com/language/translate/v2';
+  const TRANSLATE_LIMIT = 200;   // must match firestore.rules translateLimit()
+  let _translateEntitled = false; // set by the app once auth + entitlement resolve
+  let _cachedGoogleKey = null;    // in-memory only; never persisted
+  let _lastTranslateRemaining = null;
+
+  // Whether the current account is entitled to the shared paid translator.
+  function setTranslateEntitled(v) { _translateEntitled = !!v; }
+  function isTranslateEntitled() { return _translateEntitled; }
+  function getLastTranslateRemaining() { return _lastTranslateRemaining; }
+
+  // Refresh the entitlement flag + remaining cap from Firestore for the
+  // signed-in user. Returns { entitled, remaining } (remaining null if N/A).
+  async function refreshTranslateEntitlement() {
+    _translateEntitled = false;
+    _lastTranslateRemaining = null;
+    if (typeof firebase === 'undefined' || !firebase.firestore) return { entitled: false, remaining: null };
+    const uid = (typeof Auth !== 'undefined' && Auth.getUid) ? Auth.getUid() : null;
+    if (!uid) return { entitled: false, remaining: null };
+    try {
+      const db = firebase.firestore();
+      const ent = await db.doc(`entitlements/${uid}`).get();
+      _translateEntitled = ent.exists && ent.data().translateEnabled === true;
+      if (_translateEntitled) {
+        const usage = await db.doc(`translateUsage/${uid}`).get();
+        const used = usage.exists ? (usage.data().count || 0) : 0;
+        _lastTranslateRemaining = Math.max(0, TRANSLATE_LIMIT - used);
+      }
+    } catch {
+      _translateEntitled = false;
+    }
+    return { entitled: _translateEntitled, remaining: _lastTranslateRemaining };
+  }
+
+  // Consume one shared-translator unit (atomic, rules-guarded), then fetch the
+  // shared Google key from Firestore. Throws on exhaustion / unavailability so
+  // the caller can fall back to MyMemory.
+  async function _consumeSharedTranslateAndGetKey() {
+    if (typeof firebase === 'undefined' || !firebase.firestore) {
+      throw new Error('SHARED_TRANSLATE_UNAVAILABLE');
+    }
+    const uid = (typeof Auth !== 'undefined' && Auth.getUid) ? Auth.getUid() : null;
+    if (!uid) throw new Error('SHARED_TRANSLATE_NO_UID');
+
+    const db = firebase.firestore();
+    const usageRef = db.doc(`translateUsage/${uid}`);
+
+    const usedAfter = await db.runTransaction(async (tx) => {
+      const snap = await tx.get(usageRef);
+      const current = snap.exists ? (snap.data().count || 0) : 0;
+      if (current >= TRANSLATE_LIMIT) {
+        const e = new Error('TRANSLATE_EXHAUSTED');
+        e.code = 'TRANSLATE_EXHAUSTED';
+        throw e;
+      }
+      const next = current + 1;
+      tx.set(usageRef, { count: next, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      return next;
+    });
+    _lastTranslateRemaining = Math.max(0, TRANSLATE_LIMIT - usedAfter);
+
+    if (!_cachedGoogleKey) {
+      const cfg = await db.doc('config/trial').get();
+      _cachedGoogleKey = cfg.exists ? (cfg.data().GOOGLE_KEY || '') : '';
+    }
+    if (!_cachedGoogleKey) throw new Error('SHARED_TRANSLATE_NO_KEY');
+    return _cachedGoogleKey;
+  }
+
+  // Call Google Translate v2 directly from the browser with the shared key.
+  async function translateViaSharedGoogle(text, from = 'en', to = 'de') {
+    const key = await _consumeSharedTranslateAndGetKey();
+    const url = `${GOOGLE_ENDPOINT}?key=${encodeURIComponent(key)}`;
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ q: text, source: from, target: to, format: 'text' }),
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      throw new Error(`Google ${err?.error?.message || r.status}`);
+    }
+    const d = await r.json();
+    const translated = d?.data?.translations?.[0]?.translatedText;
+    if (!translated) throw new Error('Empty response from Google Translate');
+    return { text: translated.trim(), alternatives: [], provider: 'Google' };
+  }
+
   // ── Settings (client-side overrides for browser-stored keys) ──
   function loadSettings() {
     try {
@@ -72,7 +167,15 @@ const Translator = (() => {
   function getActiveProviderName() {
     const s = loadSettings();
     const useCustomDeepl = localStorage.getItem('dd_use_custom_deepl') !== '0';
-    
+
+    // Paid-tier shared translator (Google) on static hosting: when the user is
+    // entitled and still under their cap, that's the active provider. A user's
+    // OWN explicit key/provider selection below still takes precedence.
+    if (!IS_SERVER && _translateEntitled && (_lastTranslateRemaining == null || _lastTranslateRemaining > 0)
+        && s.provider === 'auto' && !s.deeplKey && !s.googleKey) {
+      return 'Google';
+    }
+
     // 1. Explicit provider selections
     if (s.provider === 'deepl' && s.deeplKey && useCustomDeepl) return 'DeepL';
     if (s.provider === 'google' && s.googleKey) return 'Google';
@@ -186,8 +289,30 @@ const Translator = (() => {
       }
       result = main;
     } else {
-      // file:// fallback or static hosting fallback — call MyMemory directly from browser
-      result = await translateMyMemoryDirect(cleanText, from, to);
+      // Static hosting / file:// — no backend. Paid-tier (entitled, under cap)
+      // users get the shared Google key; everyone (and any failure/exhaustion)
+      // falls back to free MyMemory. MyMemory also supplies the synonym
+      // alternatives, which Google's basic endpoint doesn't return.
+      result = null;
+      if (_translateEntitled) {
+        try {
+          result = await translateViaSharedGoogle(cleanText, from, to);
+        } catch (e) {
+          console.warn('[Translator] shared Google path failed, falling back to MyMemory:', e.message);
+          result = null;
+        }
+      }
+      if (result) {
+        // Enrich with MyMemory alternatives (best-effort; don't fail the result).
+        try {
+          const mm = await translateMyMemoryDirect(cleanText, from, to);
+          result.alternatives = (mm.alternatives || []).filter(
+            a => a.text.toLowerCase() !== result.text.toLowerCase()
+          );
+        } catch { /* keep Google result without alternatives */ }
+      } else {
+        result = await translateMyMemoryDirect(cleanText, from, to);
+      }
     }
 
     if (result) {
@@ -308,6 +433,12 @@ const Translator = (() => {
     getActiveProviderName,
     fetchServerStatus,
     getFirebaseConfig,
+    // Paid-tier shared translator (Google via Firestore key)
+    setTranslateEntitled,
+    isTranslateEntitled,
+    refreshTranslateEntitlement,
+    getLastTranslateRemaining,
+    TRANSLATE_LIMIT,
     get isServer() { return IS_SERVER; },
     get serverStatus() { return _serverStatus; },
   };

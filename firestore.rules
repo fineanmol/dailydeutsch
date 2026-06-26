@@ -52,6 +52,20 @@ service cloud.firestore {
     // owner-wide /users rule would otherwise allow arbitrary writes.
     function trialLimit() { return 5; }
 
+    // Per-account cap on shared-key (paid-tier) translations. Protects the
+    // shared Google Translate quota/budget the same way trialLimit protects
+    // Gemini. Bump this (and redeploy) as pricing/usage evolves.
+    function translateLimit() { return 200; }
+
+    // Whether the signed-in user is entitled to the paid-tier translator
+    // (shared Google key). The flag lives in entitlements/{uid}, which is
+    // ADMIN-WRITE-ONLY below, so a user cannot grant themselves access.
+    function translateEntitled() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/entitlements/$(request.auth.uid))
+        && get(/databases/$(database)/documents/entitlements/$(request.auth.uid)).data.translateEnabled == true;
+    }
+
     match /trialUsage/{uid} {
       // A user may only see their own usage.
       allow read: if request.auth != null && request.auth.uid == uid;
@@ -74,14 +88,58 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // The shared trial key. Readable ONLY by a signed-in user who still
-    // has trial budget left (their trialUsage counter is at/under the cap
-    // AFTER they've recorded the current use). Never writable from clients
-    // — it is seeded once via the Firebase console / admin.
+    // ── Paid-tier translator usage (shared Google key) ───────────
+    // Same increment-only, capped, no-reset shape as trialUsage. Only a
+    // translate-entitled user may create/grow their counter, and only up to
+    // translateLimit(). Top-level (not under /users/**) so guards apply.
+    match /translateUsage/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+
+      allow create: if request.auth != null
+        && request.auth.uid == uid
+        && translateEntitled()
+        && request.resource.data.count == 1
+        && request.resource.data.keys().hasOnly(['count', 'updatedAt']);
+
+      allow update: if request.auth != null
+        && request.auth.uid == uid
+        && translateEntitled()
+        && request.resource.data.count == resource.data.count + 1
+        && request.resource.data.count <= translateLimit()
+        && request.resource.data.keys().hasOnly(['count', 'updatedAt']);
+
+      allow delete: if false;
+    }
+
+    // ── Entitlements (paid-tier flags) — admin-managed only ───────
+    // A user may READ their own entitlement (so the client knows whether to
+    // offer the paid translator), but NEVER write it. You set
+    // entitlements/{uid} = { translateEnabled: true } manually in the
+    // Firebase console (or via an admin SDK) for paying users.
+    match /entitlements/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    // The shared config doc holding the Gemini trial key (field `key`) and
+    // the shared translator key (field `GOOGLE_KEY`). Readable by a signed-in
+    // user who EITHER still has Gemini trial budget left, OR is translate-
+    // entitled and under the translate cap. Never writable from clients — it
+    // is seeded once via the Firebase console / admin.
     match /config/trial {
       allow read: if request.auth != null
-        && exists(/databases/$(database)/documents/trialUsage/$(request.auth.uid))
-        && get(/databases/$(database)/documents/trialUsage/$(request.auth.uid)).data.count <= trialLimit();
+        && (
+          (
+            exists(/databases/$(database)/documents/trialUsage/$(request.auth.uid))
+            && get(/databases/$(database)/documents/trialUsage/$(request.auth.uid)).data.count <= trialLimit()
+          )
+          ||
+          (
+            translateEntitled()
+            && exists(/databases/$(database)/documents/translateUsage/$(request.auth.uid))
+            && get(/databases/$(database)/documents/translateUsage/$(request.auth.uid)).data.count <= translateLimit()
+          )
+        );
       allow write: if false;
     }
   }

@@ -7,10 +7,10 @@
   <title>Daily Deutsch: Build Your German Vocabulary</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="css/style.css?v=1.2.36" />
+  <link rel="stylesheet" href="css/style.css?v=1.2.37" />
   <link rel="manifest" href="manifest.json" />
-  <link rel="icon" type="image/png" href="icon.png?v=1.2.36" />
-  <link rel="apple-touch-icon" href="icon.png?v=1.2.36" />
+  <link rel="icon" type="image/png" href="icon.png?v=1.2.37" />
+  <link rel="apple-touch-icon" href="icon.png?v=1.2.37" />
   <script>
     (function() {
       const theme = localStorage.getItem('dd_theme') || 'system';
@@ -43,7 +43,7 @@
 <div id="login-screen" class="login-screen">
   <div class="login-card">
     <div class="login-logo">
-      <div class="login-logo-icon"><img src="icon.png?v=1.2.36" alt="Daily Deutsch Logo"></div>
+      <div class="login-logo-icon"><img src="icon.png?v=1.2.37" alt="Daily Deutsch Logo"></div>
       <span class="login-logo-text">Daily <span>Deutsch</span></span>
     </div>
     <p class="login-tagline">Build your German vocabulary,<br>one word at a time.</p>
@@ -81,7 +81,7 @@
 
       <!-- Logo -->
       <a href="#" class="logo" onclick="return false;">
-        <div class="logo-icon"><img src="icon.png?v=1.2.36" alt="Daily Deutsch Logo"></div>
+        <div class="logo-icon"><img src="icon.png?v=1.2.37" alt="Daily Deutsch Logo"></div>
         <span class="logo-text">Daily <span>Deutsch</span></span>
       </a>
 
@@ -1087,26 +1087,36 @@
   firebase.analytics();
 </script>
 
-<script src="js/analytics.js?v=1.2.36"></script>
+<script src="js/analytics.js?v=1.2.37"></script>
 
 <!-- Scripts (load order: Firebase globals must come first) -->
-<script src="js/motion.js?v=1.2.36"></script>
-<script src="js/auth.js?v=1.2.36"></script>
-<script src="js/db.js?v=1.2.36"></script>
-<script src="js/categories.js?v=1.2.36"></script>
-<script src="js/wordbank.js?v=1.2.36"></script>
-<script src="js/cefr.js?v=1.2.36"></script>
-<script src="js/translator.js?v=1.2.36"></script>
-<script src="js/exercises.js?v=1.2.36"></script>
-<script src="js/leaderboard.js?v=1.2.36"></script>
-<script src="js/insights.js?v=1.2.36"></script>
+<script src="js/motion.js?v=1.2.37"></script>
+<script src="js/auth.js?v=1.2.37"></script>
+<script src="js/db.js?v=1.2.37"></script>
+<script src="js/categories.js?v=1.2.37"></script>
+<script src="js/wordbank.js?v=1.2.37"></script>
+<script src="js/cefr.js?v=1.2.37"></script>
+<script src="js/translator.js?v=1.2.37"></script>
+<script src="js/exercises.js?v=1.2.37"></script>
+<script src="js/leaderboard.js?v=1.2.37"></script>
+<script src="js/insights.js?v=1.2.37"></script>
 <!-- Standalone modules (no cross-dependencies) -->
-<script src="js/profile.js?v=1.2.36"></script>
-<script src="js/language.js?v=1.2.36"></script>
-<script src="js/gemini.js?v=1.2.36"></script>
-<script src="js/ui.js?v=1.2.36"></script>
+<script src="js/profile.js?v=1.2.37"></script>
+<script src="js/language.js?v=1.2.37"></script>
+<script src="js/gemini.js?v=1.2.37"></script>
+<script src="js/ui.js?v=1.2.37"></script>
+<!-- Core foundation: state store, view router, auto-escaping templates -->
+<script src="js/core/store.js?v=1.2.37"></script>
+<script src="js/core/tpl.js?v=1.2.37"></script>
+<script src="js/core/router.js?v=1.2.37"></script>
+<!-- Feature modules (carved out of the former app.js monolith) -->
+<script src="js/features/exercises.js?v=1.2.37"></script>
+<script src="js/features/ai.js?v=1.2.37"></script>
+<script src="js/features/translate.js?v=1.2.37"></script>
+<script src="js/features/settings.js?v=1.2.37"></script>
+<script src="js/features/auth-ui.js?v=1.2.37"></script>
 <!-- App orchestrator (depends on all modules above) -->
-<script src="js/app.js?v=1.2.36"></script>
+<script src="js/app.js?v=1.2.37"></script>
 <script>
   function togglePasswordVisibility(inputId) {
     const el = document.getElementById(inputId);
