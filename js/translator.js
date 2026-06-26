@@ -113,6 +113,10 @@ const Translator = (() => {
       body: JSON.stringify({ text, provider: providerToSend, from, to, deeplKey: deeplKeyToSend, googleKey: settings.googleKey }),
     });
     if (!r.ok) throw new Error(`Server ${r.status}`);
+    const contentType = r.headers.get('Content-Type') || '';
+    if (contentType.includes('text/html')) {
+      throw new Error('Server returned HTML instead of JSON (app server is not running).');
+    }
     const data = await r.json();
     if (data.error) throw new Error(data.error);
     return data;   // { text, provider, alternatives? }

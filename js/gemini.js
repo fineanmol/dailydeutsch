@@ -100,6 +100,14 @@ const GeminiClient = (() => {
       headers,
       body: JSON.stringify({ prompt, responseJson }),
     });
+
+    const contentType = r.headers.get("Content-Type") || "";
+    if (contentType.includes("text/html")) {
+      throw new Error(
+        "Free AI trial needs the app server. Please run the project locally (http://localhost:3000) or add your own Gemini key in Settings."
+      );
+    }
+
     if (!r.ok) {
       const err = await r.json().catch(() => ({}));
       // Surface the trial-exhausted signal so callers can show the upgrade modal.
