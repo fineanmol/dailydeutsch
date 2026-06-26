@@ -63,3 +63,64 @@ Update both, then redeploy rules.
 
 Just edit the `key` field on `config/trial` in the Firebase Console. No code
 change or redeploy needed — the app reads it live.
+
+---
+
+# Paid-tier translator (shared Google key)
+
+Separately from the Gemini AI features, the app can give **selected (paid)
+users** a higher-quality translator using a **shared Google Translate key**,
+while everyone else uses free MyMemory. This runs with **no backend** on static
+Firebase Hosting.
+
+## Why Google and not DeepL
+
+> ⚠️ **DeepL can't be used from a static site.** DeepL's API sends no CORS
+> headers and rejects direct browser calls, so it needs a server/proxy — which
+> we deliberately don't have. **Google Translate v2** *does* allow browser
+> calls with `?key=`, so the shared paid translator uses Google. If you later
+> add a small proxy (e.g. a free Cloudflare Worker, outside Firebase), DeepL
+> can be wired the same way.
+
+## How it works
+
+1. The shared Google key is stored as a field **`GOOGLE_KEY`** on the **same
+   `config/trial` document** as the Gemini key.
+2. Access is gated by a **per-user entitlement flag**: `entitlements/{uid}`
+   with `{ translateEnabled: true }`. This doc is **admin-write-only** in the
+   rules — a user **cannot** grant themselves the paid translator.
+3. Usage is capped per account in **`translateUsage/{uid}`** (increment-only,
+   no reset — same anti-tamper shape as the Gemini counter), limited to
+   **`translateLimit()` = 200** calls.
+4. The translate chain on static hosting is: **entitled + under cap → Google
+   (shared key)**, otherwise / on any failure / when exhausted → **MyMemory**
+   (free). Gemini AI features are unaffected — they stay on the trial/own key.
+
+A user who pastes their **own** DeepL/Google key in Settings still uses that
+(it never leaves their device) and bypasses the shared path.
+
+## One-time steps
+
+### 1. Add the shared Google key
+On the existing `config/trial` doc, add field **`GOOGLE_KEY`** (type *string*)
+= your Google Cloud Translation API key. (Restrict the key to the **Cloud
+Translation API** and set a **budget/quota alert** — same caution as the
+Gemini key, since it's readable by entitled, under-cap users.)
+
+### 2. Grant a user the paid translator
+Create a doc at `entitlements/{their-uid}` with a single boolean field:
+`translateEnabled` = `true`. Remove it (or set `false`) to revoke.
+
+### 3. Deploy the rules
+```bash
+npx firebase deploy --only firestore:rules
+```
+
+## Changing the translate cap
+
+The cap lives in **two places that must match**:
+
+- `js/translator.js` → `const TRANSLATE_LIMIT = 200;`
+- `firestore.rules` → `function translateLimit() { return 200; }`
+
+Update both, then redeploy rules.

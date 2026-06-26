@@ -105,6 +105,10 @@ const SettingsUI = (() => {
       } else {
         setStatus(googleEl, 'Invalid Key', 'danger');
       }
+    } else if (Translator.isTranslateEntitled && Translator.isTranslateEntitled()) {
+      // Paid tier: shared Google key from Firestore (no personal/server key).
+      const rem = Translator.getLastTranslateRemaining ? Translator.getLastTranslateRemaining() : null;
+      setStatus(googleEl, rem != null ? `Active (Shared · ${rem} left)` : 'Active (Shared)', 'active');
     } else {
       const hasServer = serverStatus && serverStatus.hasGoogleKey;
       setStatus(googleEl, hasServer ? 'Active (Server)' : '—', hasServer ? 'active' : null);

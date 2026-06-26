@@ -680,9 +680,19 @@ const App = (() => {
           .then(rem => { if (rem != null) setTrialRemaining(rem); })
           .catch(() => {});
       }
+
+      // Resolve the paid-tier translator entitlement (shared Google key) so
+      // the provider chain knows whether to use Google or fall back to
+      // MyMemory, and refresh the navbar provider indicator once known.
+      if (Translator.refreshTranslateEntitlement) {
+        Translator.refreshTranslateEntitlement()
+          .then(() => updateProviderIndicator())
+          .catch(() => {});
+      }
     } else {
       // Signed out
       DB.cleanup();
+      if (Translator.setTranslateEntitled) Translator.setTranslateEntitled(false);
       showLoginScreen();
     }
 
