@@ -199,6 +199,11 @@ const DB = (() => {
       firebase.firestore()
         .doc(`users/${_uid}/meta/stats`)
         .set(stats)
+        .then(() => {
+          if (typeof Leaderboard !== 'undefined') {
+            Leaderboard.syncProfile(_uid, stats);
+          }
+        })
         .catch(e => console.error('[DB] saveStats:', e.message));
     } else {
       try { localStorage.setItem(LS_STATS, JSON.stringify(stats)); } catch {}
@@ -211,6 +216,27 @@ const DB = (() => {
     _uid = null; _words = []; _history = []; _stats = null;
   }
 
-  return { init, cleanup, getWords, saveWord, deleteWord, getHistory, addHistory, getStats, saveStats };
+  async function getUserSettings() {
+    if (!_uid) return null;
+    try {
+      const doc = await firebase.firestore()
+        .doc(`users/${_uid}/meta/settings`)
+        .get();
+      return doc.exists ? doc.data() : null;
+    } catch (e) {
+      console.warn('[DB] getUserSettings:', e.message);
+      return null;
+    }
+  }
+
+  function saveUserSettings(settings) {
+    if (!_uid) return;
+    firebase.firestore()
+      .doc(`users/${_uid}/meta/settings`)
+      .set(settings, { merge: true })
+      .catch(e => console.error('[DB] saveUserSettings:', e.message));
+  }
+
+  return { init, cleanup, getWords, saveWord, deleteWord, getHistory, addHistory, getStats, saveStats, getUserSettings, saveUserSettings };
 
 })();

@@ -26,6 +26,15 @@ const WordBank = (() => {
         german, category, partOfSpeech,
       };
       DB.saveWord(updated);
+      if (typeof Analytics !== 'undefined') {
+        Analytics.logEvent('word_saved', {
+          english,
+          german,
+          category,
+          part_of_speech: partOfSpeech,
+          is_new: false
+        });
+      }
       return { word: updated, isNew: false };
     } else {
       const word = {
@@ -47,13 +56,33 @@ const WordBank = (() => {
       stats.totalSaved = (stats.totalSaved || 0) + 1;
       DB.saveStats(stats);
 
+      if (typeof Analytics !== 'undefined') {
+        Analytics.logEvent('word_saved', {
+          english,
+          german,
+          category,
+          part_of_speech: partOfSpeech,
+          is_new: true
+        });
+      }
+
       awardXP(20);
 
       return { word, isNew: true };
     }
   }
 
-  function deleteWord(id)   { DB.deleteWord(id); }
+  function deleteWord(id) {
+    const word = DB.getWords().find(w => w.id === id);
+    DB.deleteWord(id);
+    if (typeof Analytics !== 'undefined') {
+      Analytics.logEvent('word_deleted', {
+        english: word ? word.english : '',
+        german: word ? word.german : '',
+        category: word ? word.category : ''
+      });
+    }
+  }
   function getAllWords()     { return DB.getWords(); }
   function getWordCount()   { return DB.getWords().length; }
 
@@ -117,6 +146,15 @@ const WordBank = (() => {
   function addToHistory({ english, german, category }) {
     DB.addHistory({ english, german, category, at: Date.now() });
 
+    if (typeof Analytics !== 'undefined') {
+      Analytics.logEvent('word_translated', {
+        english,
+        german,
+        category,
+        provider: typeof Translator !== 'undefined' ? Translator.getActiveProviderName() : 'auto'
+      });
+    }
+
     // Update stats
     const stats  = DB.getStats();
     const today  = new Date().toISOString().split('T')[0];
@@ -141,6 +179,15 @@ const WordBank = (() => {
     // Streak bonus XP
     if (streakIncreased) {
       awardXP(50);
+      const newStreak = DB.getStats().streak || 1;
+      if (typeof Analytics !== 'undefined') {
+        Analytics.logEvent('streak_milestone', { streak_days: newStreak });
+      }
+      // Show streak celebration modal (only when streak is > 1 day, i.e., actually a multi-day streak)
+      if (typeof App !== 'undefined' && App.showStreakCelebration) {
+        // Slight delay so the save completes and the UI is ready
+        setTimeout(() => App.showStreakCelebration(newStreak), 800);
+      }
     }
   }
 
@@ -159,6 +206,9 @@ const WordBank = (() => {
     DB.saveStats(stats);
 
     if (newLevel > oldLevel) {
+      if (typeof Analytics !== 'undefined') {
+        Analytics.logEvent('level_up', { level: newLevel });
+      }
       if (typeof App !== 'undefined' && App.showToast) {
         App.showToast(`🎉 Level Up! You reached Level ${newLevel}!`, 'success');
       }
@@ -185,6 +235,9 @@ const WordBank = (() => {
       if (!stats.badges[badgeId]) {
         stats.badges[badgeId] = todayStr;
         badgeUnlocked = true;
+        if (typeof Analytics !== 'undefined') {
+          Analytics.logEvent('badge_unlocked', { badge_id: badgeId, badge_name: badgeName });
+        }
         if (typeof App !== 'undefined' && App.showToast) {
           App.showToast(`🏆 Badge Unlocked: ${badgeName}!`, 'success');
         }
@@ -219,6 +272,9 @@ const WordBank = (() => {
       if (!stats.badges[badgeId]) {
         stats.badges[badgeId] = new Date().toISOString().split('T')[0];
         badgeUnlocked = true;
+        if (typeof Analytics !== 'undefined') {
+          Analytics.logEvent('badge_unlocked', { badge_id: badgeId, badge_name: badgeName });
+        }
         if (typeof App !== 'undefined' && App.showToast) {
           App.showToast(`🏆 Badge Unlocked: ${badgeName}!`, 'success');
         }

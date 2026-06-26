@@ -211,10 +211,10 @@ const Translator = (() => {
       const pick = f => scored[Math.min(Math.floor(n * f), n - 1)];
 
       const meta = {
-        A1: { note: 'Very basic — short, everyday words',          style: 'Simple everyday vocabulary' },
-        A2: { note: 'Elementary — common phrases & simple grammar', style: 'Elementary phrasing' },
-        B1: { note: 'Intermediate — natural, standard expression',  style: 'Natural conversational' },
-        B2: { note: 'Upper-intermediate — precise word choice',     style: 'More formal / precise' },
+        A1: { note: 'Very basic: short, everyday words',          style: 'Simple everyday vocabulary' },
+        A2: { note: 'Elementary: common phrases & simple grammar', style: 'Elementary phrasing' },
+        B1: { note: 'Intermediate: natural, standard expression',  style: 'Natural conversational' },
+        B2: { note: 'Upper-intermediate: precise word choice',     style: 'More formal / precise' },
       };
 
       let variationsResult;

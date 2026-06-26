@@ -29,111 +29,131 @@ const Insights = (() => {
     { id: 'night_owl', name: 'Nachteule', desc: 'Translated/practised between 10 PM and 4 AM', emoji: '🦉' }
   ];
 
-  let communityMembers = null;
-  let liveInterval = null;
+  let _leaderboardUnsub = null;
 
-  function initCommunityMembers(userXp) {
-    communityMembers = [
-      { name: 'Sabine L.', avatar: 'S', xp: userXp + 245 },
-      { name: 'Elena R.', avatar: 'E', xp: userXp + 110 },
-      { name: 'Hans M.', avatar: 'H', xp: Math.max(0, userXp - 75) },
-      { name: 'Anmol S.', avatar: 'A', xp: Math.max(0, userXp - 140) }
-    ];
-  }
-
-  function renderLeaderboard(userXp, userName = 'You', userAvatar = 'Y') {
+  function renderLeaderboard() {
     const container = document.getElementById('leaderboard-list');
     if (!container) return;
 
-    if (!communityMembers) {
-      initCommunityMembers(userXp);
-      startLiveUpdates(userXp, userName, userAvatar);
+    container.innerHTML = '<div class="lb-loading">Loading leaderboard...</div>';
+
+    if (_leaderboardUnsub) {
+      _leaderboardUnsub();
+      _leaderboardUnsub = null;
     }
 
-    const players = [
-      ...communityMembers,
-      { name: userName, avatar: userAvatar, xp: userXp, isUser: true }
-    ];
+    if (typeof Leaderboard === 'undefined') {
+      container.innerHTML = '<div class="lb-loading">Leaderboard module missing</div>';
+      return;
+    }
 
-    // Sort by XP descending
-    players.sort((a, b) => b.xp - a.xp);
+    const currentUid = (typeof Auth !== 'undefined') ? Auth.getUid() : null;
 
-    container.innerHTML = players.map((p, idx) => {
-      const isUrl = (typeof p.avatar === 'string') && (p.avatar.startsWith('http') || p.avatar.startsWith('/') || p.avatar.includes('googleusercontent') || p.avatar.includes('data:image'));
-      const avatarContent = isUrl
-        ? `<img src="${p.avatar}" alt="${escHtml(p.name)}" class="leaderboard-avatar-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
-           <span class="leaderboard-avatar-fallback" style="display:none;">${escHtml(p.name.charAt(0).toUpperCase())}</span>`
-        : `<span>${escHtml(p.avatar)}</span>`;
+    if (currentUid && typeof WordBank !== 'undefined') {
+      Leaderboard.syncProfile(currentUid, WordBank.getStats());
+    }
 
-      return `
-        <div class="leaderboard-item ${p.isUser ? 'user-highlight' : ''}" id="player-${idx}">
-          <div class="leaderboard-rank">#${idx + 1}</div>
-          <div class="leaderboard-avatar">
-            ${avatarContent}
-          </div>
-          <div class="leaderboard-info">
-            <div class="leaderboard-name">${escHtml(p.name)} ${p.isUser ? '(You)' : ''}</div>
-            <div class="leaderboard-score" id="score-val-${idx}">
-              <span>⚡</span> ${p.xp} XP
-            </div>
-          </div>
-        </div>`;
-    }).join('');
-  }
+    _leaderboardUnsub = Leaderboard.subscribe(players => {
+      if (players.length === 0) {
+        container.innerHTML = '<div class="lb-loading">No players yet. Start practicing! 🚀</div>';
+        return;
+      }
 
-  function startLiveUpdates(userXp, userName, userAvatar) {
-    if (liveInterval) clearInterval(liveInterval);
-
-    liveInterval = setInterval(() => {
-      if (!communityMembers) return;
-
-      // Pick a random community member to gain some XP
-      const idx = Math.floor(Math.random() * communityMembers.length);
-      const increment = Math.floor(Math.random() * 15) + 5;
-      communityMembers[idx].xp += increment;
-
-      // Re-render with new scores
-      renderLeaderboard(userXp, userName, userAvatar);
-
-      // Trigger a flash effect on the player's score element
-      setTimeout(() => {
-        const players = [
-          ...communityMembers,
-          { name: userName, avatar: userAvatar, xp: userXp, isUser: true }
-        ];
-        players.sort((a, b) => b.xp - a.xp);
-        const newIdx = players.findIndex(p => p.name === communityMembers[idx].name);
-        const scoreEl = document.getElementById(`score-val-${newIdx}`);
-        const itemEl = document.getElementById(`player-${newIdx}`);
-        if (scoreEl) {
-          scoreEl.classList.add('score-increase');
-          if (itemEl) {
-            itemEl.style.transform = 'scale(1.02)';
-            setTimeout(() => {
-              itemEl.style.transform = '';
-            }, 600);
+      try {
+        function buildAvatar(p, cls) {
+          const n = p.name || 'Learner';
+          const isUrl = typeof p.avatar === 'string' && (p.avatar.startsWith('http') || p.avatar.includes('googleusercontent') || p.avatar.includes('data:image'));
+          if (isUrl) {
+            return `<img src="${p.avatar}" alt="${escHtml(n)}" class="lb-avatar-img ${cls}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" /><span class="lb-avatar-letter ${cls}" style="display:none;">${escHtml(n[0].toUpperCase())}</span>`;
           }
+          return `<span class="lb-avatar-letter ${cls}">${escHtml(n[0].toUpperCase())}</span>`;
         }
-      }, 50);
 
-    }, 30000);
+        const medals = ['🥇','🥈','🥉'];
+        const rankLabels = ['1st','2nd','3rd'];
+        const medalColors = ['#FFD700','#C0C0C0','#CD7F32'];
+        const podium = players.slice(0, 3);
+        const rest = players.slice(3);
+
+        // Podium visual order: 2nd | 1st | 3rd
+        const podiumOrder = [1, 0, 2].filter(i => podium[i]);
+
+        let html = '';
+
+        if (podium.length > 0) {
+          html += '<div class="lb-podium">';
+          podiumOrder.forEach(i => {
+            const p = podium[i];
+            const pName = p.name || 'Learner';
+            const firstName = pName.split(' ')[0];
+            const isUser = p.uid === currentUid;
+            const isFirst = i === 0;
+            html += `
+              <div class="lb-podium-card${isFirst ? ' lb-podium-first' : ''}${isUser ? ' lb-podium-you' : ''}">
+                <div class="lb-podium-top">
+                  <div class="lb-podium-medal">${medals[i]}</div>
+                  <div class="lb-podium-av-wrap${isFirst ? ' lb-first-ring' : ''}">
+                    ${buildAvatar(p, 'lbav-lg')}
+                  </div>
+                </div>
+                <div class="lb-podium-info">
+                  <div class="lb-podium-name">${escHtml(firstName)}${isUser ? ' <span class="lb-you">You</span>' : ''}</div>
+                  <div class="lb-podium-xp">▲ ${(p.xp||0).toLocaleString()} XP</div>
+                </div>
+                <div class="lb-podium-badge" style="--mc:${medalColors[i]}">${rankLabels[i]}</div>
+              </div>`;
+          });
+          html += '</div>';
+        }
+
+        if (rest.length > 0) {
+          html += '<div class="lb-ranked-list">';
+          rest.forEach((p, i) => {
+            const rank = i + 4;
+            const pName = p.name || 'Learner';
+            const isUser = p.uid === currentUid;
+            html += `
+              <div class="lb-row${isUser ? ' lb-row-you' : ''}" id="player-${rank-1}">
+                <div class="lb-row-rank">${rank}</div>
+                <div class="lb-row-av">${buildAvatar(p, 'lbav-sm')}</div>
+                <div class="lb-row-info">
+                  <span class="lb-row-name">${escHtml(pName)}${isUser ? ' <span class="lb-you">You</span>' : ''}</span>
+                  <span class="lb-row-xp" id="score-val-${rank-1}">▲ ${(p.xp||0).toLocaleString()} XP</span>
+                </div>
+                <div class="lb-row-badge">${rank}th</div>
+              </div>`;
+          });
+          html += '</div>';
+        }
+
+        container.innerHTML = html;
+      } catch (err) {
+        console.error('[Leaderboard] render failed:', err);
+        container.innerHTML = `<div class="lb-loading" style="color:var(--accent-red)">⚠ Render error: ${err.message}</div>`;
+      }
+    }, err => {
+      console.error('[Leaderboard] subscribe failed:', err);
+      container.innerHTML = `<div class="lb-loading" style="color:var(--accent-red)">⚠ Database error: ${err.message}</div>`;
+    });
   }
+
 
   function render(stats) {
     renderStatCards(stats);
     renderLevelProgress(stats);
-    
-    // Render Live Leaderboard Scorecard
-    const xp = stats.xp || 0;
-    const userName = (typeof Auth !== 'undefined') ? (Auth.getDisplayName() || 'You') : 'You';
-    const photoURL = (typeof Auth !== 'undefined' && !Auth.isGuest()) ? Auth.getPhotoURL() : null;
-    const userAvatar = photoURL || (userName ? userName[0].toUpperCase() : 'Y');
-    renderLeaderboard(xp, userName, userAvatar);
+    renderLeaderboard();
 
     renderCategoryBars(stats.categories);
     renderTopWords(stats.topWords);
     renderStreakCalendar(stats.datesUsed || []);
     renderBadges(stats.badges || {});
+  }
+
+  function cleanup() {
+    if (_leaderboardUnsub) {
+      _leaderboardUnsub();
+      _leaderboardUnsub = null;
+    }
   }
 
   function renderLevelProgress(stats) {
@@ -155,13 +175,15 @@ const Insights = (() => {
     const percentEl = document.getElementById('insights-xp-percent');
     const fillEl = document.getElementById('insights-xp-fill');
 
+    const langName = (typeof LanguageSupport !== 'undefined') ? LanguageSupport.getCurrent().name : 'German';
+    const langFlag = (typeof LanguageSupport !== 'undefined') ? LanguageSupport.getCurrent().flag : '🇩🇪';
     const levelTitles = [
-      'German Starter 🇩🇪',
-      'German Novice 🚶',
-      'German Apprentice 📝',
-      'German Communicator 🗣️',
-      'German Advanced Profi 🧠',
-      'German Fluent King 👑'
+      `${langName} Starter ${langFlag}`,
+      `${langName} Novice 🚶`,
+      `${langName} Apprentice 📝`,
+      `${langName} Communicator 🗣️`,
+      `${langName} Advanced Profi 🧠`,
+      `${langName} Fluent King 👑`
     ];
     const title = levelTitles[Math.min(level - 1, levelTitles.length - 1)];
 
@@ -187,7 +209,13 @@ const Insights = (() => {
           <div class="badge-emoji">${b.emoji}</div>
           <div class="badge-name">${escHtml(b.name)}</div>
           <div class="badge-desc">${escHtml(b.desc)}</div>
-          ${isUnlocked ? `<div class="badge-date">Earned ${dateStr}</div>` : `<div class="badge-date locked-label">Locked</div>`}
+          ${isUnlocked
+            ? `<div class="badge-date">Earned ${dateStr}</div>
+               <button class="badge-share-btn" onclick="Insights.shareBadge('${escHtml(b.id)}', '${escHtml(b.name)}', '${b.emoji}')">
+                 Share 🔗
+               </button>`
+            : `<div class="badge-date locked-label">Locked</div>`
+          }
         </div>`;
     }).join('');
 
@@ -359,5 +387,23 @@ const Insights = (() => {
       .replace(/"/g, '&quot;');
   }
 
-  return { render };
+  function shareBadge(id, name, emoji) {
+    if (typeof Analytics !== 'undefined') {
+      Analytics.logEvent('badge_shared', { badge_id: id, badge_name: name });
+    }
+    const shareText = `I just earned the ${emoji} '${name}' badge on Daily Deutsch! 🇩🇪 Build your German vocabulary: https://dailydeutsch.web.app`;
+    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`;
+
+    if (navigator.share) {
+      navigator.share({
+        title: 'Daily Deutsch Badge',
+        text: shareText,
+        url: 'https://dailydeutsch.web.app',
+      }).catch(() => {});
+    } else {
+      window.open(twitterUrl, '_blank', 'noopener,noreferrer,width=550,height=420');
+    }
+  }
+
+  return { render, cleanup, renderLevelProgress, shareBadge };
 })();

@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Daily Deutsch — Track the German words you use every day. Save translations, learn component vocabulary, and practise with smart exercises." />
-  <title>Daily Deutsch — Build Your German Vocabulary</title>
+  <meta name="description" content="Daily Deutsch: Track the German words you use every day. Save translations, learn component vocabulary, and practise with smart exercises." />
+  <title>Daily Deutsch: Build Your German Vocabulary</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="css/style.css?v=1.2.4" />
+  <link rel="stylesheet" href="css/style.css?v=1.2.15" />
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🇩🇪</text></svg>" />
   <script>
@@ -154,7 +154,7 @@
               <polyline points="20 6 9 17 4 12"></polyline>
             </svg>
           </span>
-          <span id="firebase-status-text">Firebase connected — syncing to cloud</span>
+          <span id="firebase-status-text">Firebase connected. Syncing to cloud</span>
         </div>
         <button class="btn btn-ghost btn-sm w-full" style="margin-top:0.75rem;"
           onclick="App.navigateTo('settings')">
@@ -295,13 +295,12 @@
   <!-- ── Main Content ── -->
   <main class="main-content" id="main-content">
 
-    <!-- Guest upgrade banner -->
-    <div class="guest-banner hidden" id="guest-banner">
-      <span class="guest-banner-text">👤 You're signed in as a guest. <strong>Link Google</strong> to sync words across all your devices.</span>
-      <button class="btn btn-primary btn-sm" onclick="App.upgradeToGoogle()">Link Google →</button>
-    </div>
-
     <div class="container">
+      <!-- Guest upgrade banner -->
+      <div class="guest-banner hidden" id="guest-banner">
+        <span class="guest-banner-text">👤 You're signed in as a guest. <strong>Link Google</strong> to sync words across all your devices.</span>
+        <button class="btn btn-primary btn-sm" onclick="App.upgradeToGoogle()">Link Google →</button>
+      </div>
 
       <!-- ═══════════════════════════════════════════════ -->
       <!-- VIEW: TRANSLATE                                 -->
@@ -311,7 +310,7 @@
         <div class="section-header">
           <div>
             <h1 class="section-title">Translate &amp; Learn</h1>
-            <p class="section-subtitle" id="translator-subtitle">Type English, get German — save words you use daily</p>
+            <p class="section-subtitle" id="translator-subtitle">Type English, get German. Save words you use daily</p>
           </div>
           <button class="btn btn-secondary btn-sm btn-pill" id="swap-languages-btn" title="Swap translation direction">
             <span id="swap-btn-label">English ⇄ German</span>
@@ -482,7 +481,7 @@
         <div class="section-header">
           <div>
             <h1 class="section-title">My Word Bank</h1>
-            <p class="section-subtitle">Every saved word — sorted by how often you use them</p>
+            <p class="section-subtitle">Every saved word, sorted by frequency</p>
           </div>
           <button class="btn btn-primary" onclick="App.navigateTo('translate')">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -521,36 +520,125 @@
       <!-- ═══════════════════════════════════════════════ -->
       <div class="view" id="view-exercises">
 
+        <!-- Exercises empty state (shown when word bank is empty) -->
+        <div id="exercises-empty-state" class="exercises-empty-state hidden">
+          <div class="exercises-empty-state-icon">🚀</div>
+          <h3>No words saved yet!</h3>
+          <p>Head to the <strong>Translate</strong> tab and save your first German word to unlock exercises automatically.</p>
+          <button class="btn btn-primary" onclick="App.navigateTo('translate')" style="gap:8px;">
+            Translate your first word →
+          </button>
+        </div>
+
         <div id="exercise-picker">
           <div class="section-header">
             <div>
               <h1 class="section-title">Practice Exercises</h1>
-              <p class="section-subtitle">Exercises built from your most-used words — not the same phrases, but the vocabulary inside them</p>
+              <p class="section-subtitle">Exercises built from your most-used words (based on your search history)</p>
             </div>
           </div>
 
           <div class="exercise-mode-picker">
-            <div class="exercise-mode-card" id="mode-flashcard">
-              <span class="exercise-mode-icon">🃏</span>
+
+            <div class="exercise-mode-card" id="mode-flashcard" data-accent="blue">
+              <span class="exercise-mode-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="5" width="12" height="15" rx="2"></rect>
+                  <path d="M9 5c0-1.1.9-2 2-2h8c1.1 0 2 .9 2 2v10c0 1.1-.9 2-2 2"></path>
+                </svg>
+              </span>
               <div class="exercise-mode-title">Flashcards</div>
-              <p class="exercise-mode-desc">Flip cards to test yourself. Phrases are broken into individual words you'll learn in context.</p>
-              <div style="margin-top:1rem;font-size:0.8rem;color:var(--text-muted);"><span id="ex-word-count">0</span> cards ready</div>
+              <p class="exercise-mode-desc">Flip cards to test yourself with words in rich context, not just raw vocab.</p>
+              <div class="exercise-card-count"><span id="ex-word-count">0</span> cards ready</div>
               <button class="btn btn-primary w-full mt-md" id="start-flashcard">Start →</button>
             </div>
-            <div class="exercise-mode-card" id="mode-mc">
-              <span class="exercise-mode-icon">🎯</span>
+
+            <div class="exercise-mode-card" id="mode-mc" data-accent="green">
+              <span class="exercise-mode-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                  <path d="m9 12 2 2 4-4"></path>
+                </svg>
+              </span>
               <div class="exercise-mode-title">Multiple Choice</div>
-              <p class="exercise-mode-desc">Pick the correct German word from 4 options — includes component words from your saved phrases.</p>
-              <div style="margin-top:1rem;font-size:0.8rem;color:var(--text-muted);"><span id="ex-mc-count">0</span> words</div>
+              <p class="exercise-mode-desc" id="ex-mode-mc-desc">Pick the correct translation from 4 options.</p>
+              <div class="exercise-card-count"><span id="ex-mc-count">0</span> words</div>
               <button class="btn btn-primary w-full mt-md" id="start-mc">Start →</button>
             </div>
-            <div class="exercise-mode-card" id="mode-fitb">
-              <span class="exercise-mode-icon">✏️</span>
+
+            <div class="exercise-mode-card" id="mode-fitb" data-accent="orange">
+              <span class="exercise-mode-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 20h9"></path>
+                  <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+                </svg>
+              </span>
               <div class="exercise-mode-title">Fill in the Blank</div>
-              <p class="exercise-mode-desc">Complete new German sentences using your vocabulary. Never the same phrase twice.</p>
-              <div style="margin-top:1rem;font-size:0.8rem;color:var(--text-muted);"><span id="ex-fitb-count">0</span> words</div>
+              <p class="exercise-mode-desc" id="ex-mode-fitb-desc">Type the missing German word in a new sentence.</p>
+              <div class="exercise-card-count"><span id="ex-fitb-count">0</span> words</div>
               <button class="btn btn-primary w-full mt-md" id="start-fitb">Start →</button>
             </div>
+
+            <div class="exercise-mode-card" id="mode-arrangement" data-accent="teal">
+              <span class="exercise-mode-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="3" width="7" height="9" rx="1"></rect>
+                  <rect x="14" y="3" width="7" height="5" rx="1"></rect>
+                  <rect x="14" y="12" width="7" height="9" rx="1"></rect>
+                  <rect x="3" y="16" width="7" height="5" rx="1"></rect>
+                </svg>
+              </span>
+              <div class="exercise-mode-title">Translate Phrase</div>
+              <p class="exercise-mode-desc">Tap the word tiles in the right order to build the English translation.</p>
+              <div class="exercise-card-count"><span id="ex-arrangement-count">0</span> words</div>
+              <button class="btn btn-primary w-full mt-md" id="start-arrangement">Start →</button>
+            </div>
+
+            <div class="exercise-mode-card" id="mode-match" data-accent="purple">
+              <span class="exercise-mode-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M16 3h5v5"></path>
+                  <path d="M4 20L21 3"></path>
+                  <path d="M21 16v5h-5"></path>
+                  <path d="M15 15l6 6"></path>
+                  <path d="M4 4l5 5"></path>
+                </svg>
+              </span>
+              <div class="exercise-mode-title">Match</div>
+              <p class="exercise-mode-desc">Tap pairs to match German words with their English meanings. Beat the clock!</p>
+              <div class="exercise-card-count"><span id="ex-match-count">0</span> pairs</div>
+              <button class="btn btn-primary w-full mt-md" id="start-match">Play →</button>
+            </div>
+
+            <div class="exercise-mode-card" id="mode-auditor" data-accent="pink">
+              <span class="exercise-mode-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275Z"></path>
+                  <path d="m5 3 1 2.5L8.5 6 6 7 5 9.5 4 7 1.5 6 4 5Z"></path>
+                  <path d="m19 17 1 2.5 2.5.5-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1Z"></path>
+                </svg>
+              </span>
+              <div class="exercise-mode-title">Sentence Auditor</div>
+              <p class="exercise-mode-desc" id="ex-mode-auditor-desc">AI scans your German sentence for grammar, spelling &amp; verb placement.</p>
+              <div class="exercise-card-count">AI-powered</div>
+              <button class="btn btn-primary w-full mt-md" id="start-auditor">Start →</button>
+            </div>
+
+            <div class="exercise-mode-card collab-active" id="mode-collab" data-accent="purple">
+              <span class="exercise-mode-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="9" cy="7" r="4"></circle>
+                  <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+              </span>
+              <div class="exercise-mode-title">Collab Match</div>
+              <p class="exercise-mode-desc">Challenge a friend to a real-time vocabulary matching duel.</p>
+              <div class="exercise-card-count">Invite-based</div>
+              <button class="btn btn-primary w-full mt-md" id="start-collab">📨 Invite a Friend →</button>
+            </div>
+
           </div>
 
           <div class="card card-gold" style="margin-top:var(--space-lg);">
@@ -559,7 +647,7 @@
               <div>
                 <h4>How exercises work</h4>
                 <p style="margin-top:4px;font-size:0.9rem;">
-                  Saved <strong style="color:#b89a00">phrases are decomposed</strong> — "Guten Morgen" becomes exercises about "Morgen" and "gut" separately.
+                  Saved <strong style="color:#b89a00">phrases are decomposed</strong>: "Guten Morgen" becomes exercises about "Morgen" and "gut" separately.
                   Each session uses <strong style="color:#b89a00">new contextual sentences</strong>, not the exact phrase you saved.
                   High-frequency, low-accuracy words get more practice automatically.
                 </p>
@@ -569,6 +657,64 @@
         </div>
 
         <div id="exercise-area" class="hidden"></div>
+        <div id="word-arrangement-area" class="hidden"></div>
+        <div id="match-area" class="hidden"></div>
+
+        <div id="sentence-auditor-area" class="hidden">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: var(--space-md);">
+            <button class="btn btn-ghost btn-icon" id="auditor-back-btn" onclick="App.stopSentenceAuditor()" aria-label="Go back to exercises">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+              </svg>
+            </button>
+            <div>
+              <h2 style="font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 1.5rem; margin: 0; display: flex; align-items: center; gap: 8px;">
+                AI Sentence Auditor
+              </h2>
+            </div>
+          </div>
+          <p style="color: var(--text-secondary); font-size: 0.92rem; margin-bottom: var(--space-lg); line-height: 1.45;" id="auditor-instructions">
+            Type any German sentence below. The AI will scan it for grammar, spelling, verb placement, case endings, and present a structured explanation.
+          </p>
+
+          <div class="auditor-warning-card hidden" id="auditor-key-warning">
+            <span>⚠️</span>
+            <div>
+              <strong>Gemini API Key Required:</strong> To scan your sentences with AI, please navigate to the 
+              <a href="#" onclick="App.navigateTo('settings'); return false;" style="color:var(--sky-blue); text-decoration:underline; font-weight:600;">Settings tab</a> 
+              and add your Gemini API Key first.
+            </div>
+          </div>
+
+          <div class="auditor-area" style="margin-top: var(--space-md);">
+            <div class="auditor-textarea-wrap">
+              <textarea class="auditor-textarea" id="auditor-input" placeholder="e.g., Ich gehen gestern nach Hause (I went home yesterday)"></textarea>
+            </div>
+            
+            <div style="display: flex; gap: 10px;">
+              <button class="btn btn-primary" id="auditor-submit-btn" onclick="App.auditSentence()" style="flex: 1; padding: 12px; justify-content: center; display: flex; align-items: center; gap: 6px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"></path>
+                  <path d="m9 12 2 2 4-4"></path>
+                </svg>
+                Audit Sentence
+              </button>
+              <button class="btn btn-secondary" onclick="document.getElementById('auditor-input').value = ''; document.getElementById('auditor-results').innerHTML = '';" style="padding: 12px 18px;">
+                Clear
+              </button>
+            </div>
+
+            <!-- Loader -->
+            <div id="auditor-loader" class="hidden" style="text-align: center; padding: 2rem 0;">
+              <div class="spinner" style="margin: 0 auto 12px auto;"></div>
+              <span style="font-size: 0.9rem; color: var(--text-muted);">Auditing sentence syntax...</span>
+            </div>
+
+            <!-- Results Output -->
+            <div id="auditor-results"></div>
+          </div>
+        </div>
 
         <div id="exercise-result-area" class="hidden">
           <div class="exercise-result">
@@ -595,7 +741,7 @@
         <div class="section-header">
           <div>
             <h1 class="section-title">Your Learning Insights</h1>
-            <p class="section-subtitle">Which words and categories you use most — focus your learning here</p>
+            <p class="section-subtitle">Which words and categories you use most to focus your learning</p>
           </div>
         </div>
 
@@ -621,7 +767,7 @@
             <h3 class="chart-title" style="margin-bottom:0;">⚡ Live Community Leaderboard</h3>
             <span class="live-indicator"><span class="live-dot"></span> Live</span>
           </div>
-          <p class="section-subtitle" style="margin-top:2px; margin-bottom: 1rem;">Compete with active German learners this week!</p>
+          <p class="section-subtitle" style="margin-top:2px; margin-bottom: 1rem;" id="leaderboard-subtitle">Compete with active German learners this week!</p>
           
           <div class="leaderboard-list" id="leaderboard-list">
             <div class="leaderboard-item loading">Loading scoreboard...</div>
@@ -666,7 +812,7 @@
         <div class="chart-card" style="margin-top:1.5rem;">
           <div class="chart-title">📖 Practice Reading in Context</div>
           <div id="ai-story-container" style="text-align:center; padding:1.25rem;">
-            <p style="color:var(--text-secondary); font-size:0.9rem; margin-bottom:1rem; line-height:1.45;">
+            <p style="color:var(--text-secondary); font-size:0.9rem; margin-bottom:1rem; line-height:1.45;" id="ai-story-description">
               Generate a custom German story utilizing words you've learned. Requires a Gemini API Key.
             </p>
             <button class="btn btn-primary" onclick="App.generateAIStory()">✏️ Generate AI Story</button>
@@ -675,8 +821,8 @@
 
         <!-- Badge Gallery -->
         <div class="chart-card" style="margin-top:1.5rem;">
-          <div class="chart-title">🏆 Your Achievements — Badges</div>
-          <div class="badges-grid" id="badges-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(130px, 1fr)); gap:1rem; margin-top:1rem;">
+          <div class="chart-title">🏆 Achievements</div>
+          <div class="badges-grid-redesign" id="badges-grid">
             <!-- Generated dynamically -->
           </div>
         </div>
@@ -757,14 +903,19 @@
             </div>
             <div class="settings-form">
               <div class="settings-form-row">
+                <label class="settings-label">Language You're Learning</label>
+                <div class="german-only-badge">🇩🇪 German</div>
+                <p class="german-only-note">Daily Deutsch is exclusively focused on German vocabulary: the deepest, most specialised German learning experience.</p>
+              </div>
+              <div class="settings-form-row">
                 <label class="settings-label" for="settings-page-cefr-goal">Target German Level (CEFR)</label>
                 <select class="select" id="settings-page-cefr-goal">
-                  <option value="A1">A1 — Beginner</option>
-                  <option value="A2">A2 — Elementary</option>
-                  <option value="B1">B1 — Intermediate (Recommended)</option>
-                  <option value="B2">B2 — Upper Intermediate</option>
-                  <option value="C1">C1 — Advanced</option>
-                  <option value="C2">C2 — Master / Fluent</option>
+                  <option value="A1">A1: Beginner</option>
+                  <option value="A2">A2: Elementary</option>
+                  <option value="B1">B1: Intermediate (Recommended)</option>
+                  <option value="B2">B2: Upper Intermediate</option>
+                  <option value="C1">C1: Advanced</option>
+                  <option value="C2">C2: Master / Fluent</option>
                 </select>
               </div>
               <div class="settings-form-row">
@@ -778,6 +929,71 @@
               </div>
               <button class="btn btn-primary" style="width:100%; margin-top:0.5rem;" onclick="App.saveGoalsSettings()">
                 Save Goals
+              </button>
+            </div>
+          </div>
+
+          <!-- 2.5 Learner Profile Customization -->
+          <div class="settings-page-card">
+            <div class="settings-page-card-header">
+              <span class="settings-page-card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--sky-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 22px; height: 22px; display: block;">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+              </span>
+              <div>
+                <div class="settings-page-card-title">Learner Profile</div>
+                <div class="settings-page-card-sub">Customize your profile &amp; showcase details on the leaderboard</div>
+              </div>
+            </div>
+            <div class="settings-form">
+              <div class="settings-form-row">
+                <label class="settings-label" for="settings-page-native-lang">Native Language</label>
+                <select class="select" id="settings-page-native-lang">
+                  <option value="en">English 🇬🇧</option>
+                  <option value="es">Spanish 🇪🇸</option>
+                  <option value="fr">French 🇫🇷</option>
+                  <option value="tr">Turkish 🇹🇷</option>
+                  <option value="ar">Arabic 🇸🇦</option>
+                  <option value="hi">Hindi 🇮🇳</option>
+                  <option value="zh">Chinese 🇨🇳</option>
+                  <option value="ru">Russian 🇷🇺</option>
+                  <option value="pl">Polish 🇵🇱</option>
+                  <option value="it">Italian 🇮🇹</option>
+                </select>
+              </div>
+              <div class="settings-form-row">
+                <label class="settings-label" for="settings-page-current-level">Self-Assessed German Level</label>
+                <select class="select" id="settings-page-current-level">
+                  <option value="A1">A1: Absolute Beginner</option>
+                  <option value="A2">A2: Beginner</option>
+                  <option value="B1">B1: Intermediate</option>
+                  <option value="B2">B2: Upper Intermediate</option>
+                  <option value="C1">C1: Advanced</option>
+                  <option value="C2">C2: Master / Fluent</option>
+                </select>
+              </div>
+              <div class="settings-form-row">
+                <label class="settings-label" for="settings-page-learning-reason">Primary Learning Reason</label>
+                <select class="select" id="settings-page-learning-reason">
+                  <option value="job">Career &amp; Work 💼</option>
+                  <option value="travel">Travel &amp; Culture ✈️</option>
+                  <option value="exam">Exam Preparation 📝</option>
+                  <option value="hobby">Hobby &amp; Family 🎨</option>
+                </select>
+              </div>
+              <div class="settings-form-row">
+                <label class="settings-label" for="settings-page-learning-focus">Learning Focus Area</label>
+                <select class="select" id="settings-page-learning-focus">
+                  <option value="vocab">Vocabulary Expansion 🌱</option>
+                  <option value="speaking">Speaking &amp; Pronunciation 🗣️</option>
+                  <option value="grammar">Grammar &amp; Structure 📚</option>
+                  <option value="listening">Listening &amp; Auditory 🎧</option>
+                </select>
+              </div>
+              <button class="btn btn-primary" style="width:100%; margin-top:0.5rem;" onclick="UserProfile.saveFromForm()">
+                Save Profile
               </button>
             </div>
           </div>
@@ -869,7 +1085,7 @@
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
                   <span style="font-size:0.75rem; color:var(--text-muted);">Status:</span>
-                  <span class="settings-api-status" id="deepl-status">—</span>
+                  <span class="settings-api-status" id="deepl-status">-</span>
                 </div>
               </div>
 
@@ -884,7 +1100,7 @@
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
                   <span style="font-size:0.75rem; color:var(--text-muted);">Status:</span>
-                  <span class="settings-api-status" id="google-status">—</span>
+                  <span class="settings-api-status" id="google-status">-</span>
                 </div>
               </div>
 
@@ -1014,21 +1230,26 @@
   firebase.analytics();
 </script>
 
+<script src="js/analytics.js?v=1.2.15"></script>
+
 <!-- Scripts (load order: Firebase globals must come first) -->
-<script src="js/motion.js?v=1.2.3"></script>
-<script src="js/auth.js?v=1.2.3"></script>
-<script src="js/db.js?v=1.2.3"></script>
-<script src="js/categories.js?v=1.2.3"></script>
-<script src="js/wordbank.js?v=1.2.3"></script>
-<script src="js/cefr.js?v=1.2.3"></script>
-<script src="js/translator.js?v=1.2.3"></script>
-<script src="js/exercises.js?v=1.2.3"></script>
-<script src="js/insights.js?v=1.2.3"></script>
+<script src="js/motion.js?v=1.2.15"></script>
+<script src="js/auth.js?v=1.2.15"></script>
+<script src="js/db.js?v=1.2.15"></script>
+<script src="js/categories.js?v=1.2.15"></script>
+<script src="js/wordbank.js?v=1.2.15"></script>
+<script src="js/cefr.js?v=1.2.15"></script>
+<script src="js/translator.js?v=1.2.15"></script>
+<script src="js/exercises.js?v=1.2.15"></script>
+<script src="js/leaderboard.js?v=1.2.15"></script>
+<script src="js/insights.js?v=1.2.15"></script>
 <!-- Standalone modules (no cross-dependencies) -->
-<script src="js/gemini.js?v=1.2.3"></script>
-<script src="js/ui.js?v=1.2.3"></script>
+<script src="js/profile.js?v=1.2.15"></script>
+<script src="js/language.js?v=1.2.15"></script>
+<script src="js/gemini.js?v=1.2.15"></script>
+<script src="js/ui.js?v=1.2.15"></script>
 <!-- App orchestrator (depends on all modules above) -->
-<script src="js/app.js?v=1.2.3"></script>
+<script src="js/app.js?v=1.2.15"></script>
 <script>
   function togglePasswordVisibility(inputId) {
     const el = document.getElementById(inputId);
@@ -1068,6 +1289,30 @@
   });
 </script>
 
+<!-- ── Exercise Feedback Bar (Duolingo-style slide-up) ── -->
+<div class="exercise-feedback-bar" id="exercise-feedback-bar" aria-live="polite">
+  <div class="fb-top-row">
+    <span class="fb-emoji" id="fb-emoji">😊</span>
+    <span class="fb-title" id="fb-title">You are correct!</span>
+  </div>
+  <div class="fb-detail" id="fb-detail"></div>
+  <div class="fb-correct-answer hidden" id="fb-correct-answer"></div>
+  <div class="fb-actions">
+    <button class="btn btn-ghost btn-sm" id="fb-explain-btn" style="display:none">💡 Explain</button>
+    <button class="btn btn-primary" id="fb-continue-btn" style="min-width:130px">Continue</button>
+  </div>
+</div>
+
+<!-- ── Streak Celebration Modal ── -->
+<div class="streak-modal-overlay hidden" id="streak-modal" role="dialog" aria-modal="true" aria-label="Streak celebration">
+  <div class="streak-modal-card" id="streak-modal-card">
+    <span class="streak-modal-fire">🔥</span>
+    <div class="streak-modal-number" id="streak-modal-number">3</div>
+    <div class="streak-modal-label" id="streak-modal-label">Day Streak!</div>
+    <p class="streak-modal-sub" id="streak-modal-sub">Amazing! You've been learning German for 3 days in a row. Keep it up!</p>
+    <button class="btn btn-primary" style="width:100%;" onclick="App.closeStreakModal()">Keep Going 🚀</button>
+  </div>
+</div>
 
 </body>
 </html>

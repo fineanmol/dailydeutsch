@@ -241,7 +241,7 @@ const Exercises = (() => {
         const tmpl = pickTemplate(item.category);
         return {
           id: item.id,
-          frontLabel: 'In context — translate the missing word',
+          frontLabel: 'In context: translate the missing word',
           front: tmpl.clue.replace('___', `[${item.english}]`),
           frontSub: `German sentence: "${tmpl.de.replace('___', '?')}"`,
           back: item.german,
@@ -353,11 +353,69 @@ const Exercises = (() => {
     });
   }
 
+  // ── Word Arrangement ─────────────────────────────────────────
+  /**
+   * Word Arrangement: given a German sentence/word, player taps English
+   * word tiles to build the correct English translation.
+   * Returns array of {id, prompt (German), answer (English), tiles[]}.
+   */
+  function generateWordArrangement(savedWords) {
+    if (!savedWords || savedWords.length === 0) return [];
+
+    // Pick up to 10 direct words (prefer shorter phrases for readability)
+    const direct = shuffle([...savedWords])
+      .filter(w => w.english && w.german)
+      .slice(0, 10);
+
+    return direct.map(word => {
+      const answer = word.english.trim();
+      const answerWords = answer.split(/\s+/);
+
+      // Build a pool of distractor words from other saved words
+      const distractors = shuffle(
+        savedWords
+          .filter(w => w.id !== word.id && w.english)
+          .map(w => w.english.split(/\s+/))
+          .flat()
+          .filter(w => w.length > 2 && !answerWords.includes(w))
+      ).slice(0, Math.max(4, 8 - answerWords.length));
+
+      const allTiles = shuffle([...answerWords, ...distractors]);
+
+      return {
+        id: word.id,
+        prompt: word.german,
+        answer,
+        answerWords,
+        tiles: allTiles,
+        category: word.category,
+      };
+    });
+  }
+
+  // ── Match Game ───────────────────────────────────────────────
+  /**
+   * Match: returns a set of word pairs {german, english} (up to 6 pairs).
+   * The caller renders them as a mixed grid of German + English tiles.
+   */
+  function generateMatchPairs(savedWords) {
+    if (!savedWords || savedWords.length === 0) return [];
+    const pool = shuffle([...savedWords].filter(w => w.german && w.english));
+    return pool.slice(0, Math.min(6, pool.length)).map(w => ({
+      id: w.id,
+      german: w.german.split(' ').slice(0, 2).join(' '), // cap at 2 words for tile readability
+      english: w.english.split(' ').slice(0, 2).join(' '),
+      category: w.category,
+    }));
+  }
+
   // ── Public ───────────────────────────────────────────────────
   return {
     generateFlashcards,
     generateMultipleChoice,
     generateFillBlank,
+    generateWordArrangement,
+    generateMatchPairs,
     buildPool,        // exposed for debugging / insights
   };
 

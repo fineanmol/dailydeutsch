@@ -1,0 +1,20 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Private user data (words, history, stats, settings)
+    match /users/{userId}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Public user profiles (for live leaderboard)
+    match /profiles/{profileId} {
+      // Any authenticated user (including anonymous guest sessions) can read the leaderboard
+      allow read: if request.auth != null;
+      
+      // Users can only write/update their own profile document
+      allow write: if request.auth != null && request.auth.uid == profileId;
+    }
+    
+  }
+}

@@ -17,6 +17,10 @@ const App = (() => {
   document.body.classList.toggle('prod-mode', isProd);
   document.body.classList.toggle('dev-mode', !isProd);
 
+  function getLearningLangName() {
+    return (typeof LanguageSupport !== 'undefined') ? LanguageSupport.getCurrent().name : 'German';
+  }
+
   // ── Text-to-Speech Pronunciation ──────────────────────────────
   function speakText(text, lang = 'de-DE') {
     if (!text || !('speechSynthesis' in window)) return;
@@ -36,7 +40,18 @@ const App = (() => {
   }
 
   function speakGerman(text) {
-    speakText(text, 'de-DE');
+    const langToTtsCode = {
+      de: 'de-DE',
+      es: 'es-ES',
+      fr: 'fr-FR',
+      it: 'it-IT',
+      tr: 'tr-TR',
+      zh: 'zh-CN',
+      ar: 'ar-SA'
+    };
+    const learningLang = localStorage.getItem('dd_learning_lang') || 'de';
+    const code = langToTtsCode[learningLang] || 'de-DE';
+    speakText(text, code);
   }
 
   // Pre-load voices cache
@@ -47,16 +62,24 @@ const App = (() => {
   // ── Noun Gender Highlighting ─────────────────────────────────
   function formatGermanWord(text) {
     if (!text) return '';
+    const learningLang = localStorage.getItem('dd_learning_lang') || 'de';
     const trimmed = text.trim();
     const parts = trimmed.split(/\s+/);
     if (parts.length > 1) {
       const first = parts[0].toLowerCase();
-      if (first === 'der') {
-        return `<span class="article-masc">der</span> ${escHtml(parts.slice(1).join(' '))}`;
-      } else if (first === 'die') {
-        return `<span class="article-fem">die</span> ${escHtml(parts.slice(1).join(' '))}`;
-      } else if (first === 'das') {
-        return `<span class="article-neu">das</span> ${escHtml(parts.slice(1).join(' '))}`;
+      if (learningLang === 'de') {
+        if (first === 'der') return `<span class="article-masc">der</span> ${escHtml(parts.slice(1).join(' '))}`;
+        if (first === 'die') return `<span class="article-fem">die</span> ${escHtml(parts.slice(1).join(' '))}`;
+        if (first === 'das') return `<span class="article-neu">das</span> ${escHtml(parts.slice(1).join(' '))}`;
+      } else if (learningLang === 'fr') {
+        if (first === 'le') return `<span class="article-masc">le</span> ${escHtml(parts.slice(1).join(' '))}`;
+        if (first === 'la') return `<span class="article-fem">la</span> ${escHtml(parts.slice(1).join(' '))}`;
+      } else if (learningLang === 'es') {
+        if (first === 'el') return `<span class="article-masc">el</span> ${escHtml(parts.slice(1).join(' '))}`;
+        if (first === 'la') return `<span class="article-fem">la</span> ${escHtml(parts.slice(1).join(' '))}`;
+      } else if (learningLang === 'it') {
+        if (['il', 'lo'].includes(first)) return `<span class="article-masc">${first}</span> ${escHtml(parts.slice(1).join(' '))}`;
+        if (first === 'la') return `<span class="article-fem">la</span> ${escHtml(parts.slice(1).join(' '))}`;
       }
     }
     return escHtml(text);
@@ -78,7 +101,7 @@ const App = (() => {
     GeminiClient.saveKey(key);
     updateGeminiStatusUI();
     if (key) {
-      showToast('Gemini key saved — AI features enabled.', 'success');
+      showToast('Gemini key saved. AI features enabled.', 'success');
     } else {
       showToast('Gemini key removed. AI features disabled.', 'info');
     }
@@ -185,7 +208,7 @@ const App = (() => {
   // ── State ────────────────────────────────────────────────────
   let state = {
     currentView: 'translate',
-    translationDirection: 'en-de', // 'en-de' or 'de-en'
+    translationDirection: 'en-' + (localStorage.getItem('dd_learning_lang') || 'de'),
     currentTranslation: null,
     currentEnglish: '',
     currentAlternatives: [],
@@ -219,6 +242,9 @@ const App = (() => {
     document.body.classList.toggle('dev-mode', !isProdEnv);
 
     setupNavigation();
+    if (typeof LanguageSupport !== 'undefined') {
+      LanguageSupport.updateUIElements();
+    }
     setupTranslator();
     setupConjugator();
     setupWordBank();
@@ -238,6 +264,14 @@ const App = (() => {
   }
 
   function navigateTo(viewId) {
+    if (viewId !== 'insights' && typeof Insights !== 'undefined' && Insights.cleanup) {
+      Insights.cleanup();
+    }
+
+    if (typeof Analytics !== 'undefined') {
+      Analytics.logEvent('screen_view', { screen_name: viewId });
+    }
+
     state.currentView = viewId;
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.querySelectorAll('[data-tab]').forEach(b => b.classList.remove('active'));
@@ -324,7 +358,8 @@ const App = (() => {
     if (pgProvider) pgProvider.value = settings.provider;
     updateSettingsStatusBadges(Translator.serverStatus);
 
-    showToast(`Settings saved — using ${Translator.getActiveProviderName()}`, 'success');
+    showToast(`Settings saved: using ${Translator.getActiveProviderName()}`, 'success');
+    syncSettingsToFirebase();
   }
 
   function resetSettings() {
@@ -344,6 +379,7 @@ const App = (() => {
     updateSettingsStatusBadges(Translator.serverStatus);
 
     showToast('Reset to MyMemory (free)', 'info');
+    syncSettingsToFirebase();
   }
 
   // ── Translator ───────────────────────────────────────────────
@@ -355,41 +391,48 @@ const App = (() => {
     const swapBtn = document.getElementById('swap-languages-btn');
 
     swapBtn?.addEventListener('click', () => {
-      state.translationDirection = state.translationDirection === 'en-de' ? 'de-en' : 'en-de';
+      const learningLang = typeof LanguageSupport !== 'undefined' ? LanguageSupport.getLangCode() : 'de';
+      const targetDir = 'en-' + learningLang;
+      const isEnToTarget = state.translationDirection === targetDir;
+      state.translationDirection = isEnToTarget ? (learningLang + '-en') : targetDir;
+      localStorage.setItem('dd_swap_direction', isEnToTarget ? '1' : '');
       
       const subtitle = document.getElementById('translator-subtitle');
       const swapLabel = document.getElementById('swap-btn-label');
       const sourceLabel = document.getElementById('source-lang-label');
       const targetLabel = document.getElementById('target-lang-label');
       
-      const isEnDe = state.translationDirection === 'en-de';
+      const isEnToTargetNow = state.translationDirection.startsWith('en-');
+      const currentLang = typeof LanguageSupport !== 'undefined' ? LanguageSupport.getCurrent() : { name: 'German', flag: '🇩🇪' };
+      const currentFlag = currentLang.flag;
+      const currentName = currentLang.name;
       
       if (subtitle) {
-        subtitle.textContent = isEnDe 
-          ? 'Type English, get German — save words you use daily' 
-          : 'Type German, get English — check your level and writing';
+        subtitle.textContent = isEnToTargetNow 
+          ? `Type English, get ${currentName}. Save words you use daily` 
+          : `Type ${currentName}, get English. Check your level and writing`;
       }
       
       if (swapLabel) {
-        swapLabel.textContent = isEnDe ? 'English ⇄ German' : 'German ⇄ English';
+        swapLabel.textContent = isEnToTargetNow ? `English ⇄ ${currentName}` : `${currentName} ⇄ English`;
       }
       
       if (sourceLabel) {
-        sourceLabel.innerHTML = isEnDe 
+        sourceLabel.innerHTML = isEnToTargetNow 
           ? '<span class="lang-flag">🇬🇧</span> English' 
-          : '<span class="lang-flag">🇩🇪</span> German';
+          : `<span class="lang-flag">${currentFlag}</span> ${currentName}`;
       }
       
       if (targetLabel) {
-        targetLabel.innerHTML = isEnDe 
-          ? '<span class="lang-flag">🇩🇪</span> German' 
+        targetLabel.innerHTML = isEnToTargetNow 
+          ? `<span class="lang-flag">${currentFlag}</span> ${currentName}`
           : '<span class="lang-flag">🇬🇧</span> English';
       }
       
       if (input) {
-        input.placeholder = isEnDe 
+        input.placeholder = isEnToTargetNow 
           ? 'Type or paste English text here…' 
-          : 'Type or paste German text here…';
+          : `Type or paste ${currentName} text here…`;
           
         const resultDisplay = document.getElementById('translation-display');
         const currentResultText = resultDisplay ? resultDisplay.textContent.trim() : '';
@@ -729,10 +772,10 @@ const App = (() => {
       B2: { color: '#ae63e4', bg: 'rgba(174,99,228,0.1)', border: 'rgba(174,99,228,0.25)' },
     };
     const levelDesc = {
-      A1: 'Beginner — simple, direct everyday words',
-      A2: 'Elementary — basic grammar, common phrases',
-      B1: 'Intermediate — natural, standard phrasing',
-      B2: 'Upper-Intermediate — more precise vocabulary',
+      A1: 'Beginner: simple, direct everyday words',
+      A2: 'Elementary: basic grammar, common phrases',
+      B1: 'Intermediate: natural, standard phrasing',
+      B2: 'Upper-Intermediate: more precise vocabulary',
     };
 
     panel.innerHTML = `
@@ -803,7 +846,7 @@ const App = (() => {
       C1: 'You can express yourself fluently, spontaneously, and precisely in complex situations.',
       C2: 'You have near-native mastery. You can understand virtually everything heard or read.',
     };
-    showToast(`${level} — ${info.title}: ${descriptions[level] || ''}`, 'info');
+    showToast(`${level} (${info.title}): ${descriptions[level] || ''}`, 'info');
   }
 
   // ── Save / Clear ─────────────────────────────────────────────
@@ -878,13 +921,13 @@ const App = (() => {
   async function fetchAndAttachWordMetadata(wordId, german, english) {
     if (!getGeminiKey()) return;
     try {
-      const prompt = `You are a German language assistant. Provide grammatical metadata for the German word "${german}" (meaning "${english}" in English).
+      const prompt = `You are a ${getLearningLangName()} language assistant. Provide grammatical metadata for the ${getLearningLangName()} word "${german}" (meaning "${english}" in English).
       Return a JSON object with these EXACT keys:
       {
-        "plural": "plural form with article if it is a noun (e.g. 'die Tische'), otherwise null",
-        "conjugations": "key verb forms if it is a verb (e.g. 'geht, ging, ist gegangen'), otherwise null",
-        "exampleDe": "a short, simple, natural German example sentence using the word",
-        "exampleEn": "the English translation of the German example sentence"
+        "plural": "plural form with article if it is a noun (e.g. for German 'die Tische', for Spanish 'los libros'), otherwise null",
+        "conjugations": "key verb forms if it is a verb (e.g. 'geht, ging, ist gegangen' or 'habla, habló, hablado'), otherwise null",
+        "exampleDe": "a short, simple, natural ${getLearningLangName()} example sentence using the word",
+        "exampleEn": "the English translation of the ${getLearningLangName()} example sentence"
       }`;
       const meta = await callGemini(prompt, true);
 
@@ -918,7 +961,7 @@ const App = (() => {
     });
     updateNavStats();
     if (isNew) showToast(`"${word.german}" saved! ✨`, 'success');
-    else showToast(`"${word.german}" — used ${word.frequency}× now`, 'info');
+    else showToast(`"${word.german}" (used ${word.frequency}× now)`, 'info');
 
     if (isNew && getGeminiKey()) {
       fetchAndAttachWordMetadata(word.id, word.german, word.english);
@@ -1107,27 +1150,146 @@ const App = (() => {
     const dueCount = dueWords.length;
     const totalCount = allWords.length;
 
-    const countText = dueCount >= 4 
-      ? `${dueCount} due for review` 
-      : `${totalCount} total words (no reviews due)`;
+    // Show / hide empty-state guidance
+    const emptyState = document.getElementById('exercises-empty-state');
+    const picker = document.getElementById('exercise-picker');
+    if (emptyState && picker) {
+      if (totalCount === 0) {
+        emptyState.classList.remove('hidden');
+        picker.style.opacity = '0.35';
+        picker.style.pointerEvents = 'none';
+      } else {
+        emptyState.classList.add('hidden');
+        picker.style.opacity = '';
+        picker.style.pointerEvents = '';
+      }
+    }
 
-    ['ex-word-count','ex-mc-count','ex-fitb-count'].forEach(id => {
+    const countText = dueCount >= 4
+      ? `${dueCount} due for review`
+      : `${totalCount} total words`;
+
+    ['ex-word-count','ex-mc-count','ex-fitb-count','ex-arrangement-count'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.textContent = countText;
     });
+    const matchCountEl = document.getElementById('ex-match-count');
+    if (matchCountEl) matchCountEl.textContent = Math.min(6, totalCount);
     const mcStart = document.getElementById('start-mc');
     if (mcStart) mcStart.disabled = totalCount < 4;
+    const arrangementStart = document.getElementById('start-arrangement');
+    if (arrangementStart) arrangementStart.disabled = totalCount === 0;
+    const matchStart = document.getElementById('start-match');
+    if (matchStart) matchStart.disabled = totalCount < 2;
   }
 
   function setupExercises() {
+    // Card clicks
+    document.getElementById('mode-flashcard')?.addEventListener('click', (e) => {
+      if (e.target.closest('.btn')) return;
+      const allWords = WordBank.getAllWords();
+      if (allWords.length === 0) return;
+      startExercise('flashcard');
+    });
     document.getElementById('start-flashcard')?.addEventListener('click', () => startExercise('flashcard'));
+
+    document.getElementById('mode-mc')?.addEventListener('click', (e) => {
+      if (e.target.closest('.btn')) return;
+      const allWords = WordBank.getAllWords();
+      if (allWords.length < 4) {
+        showToast('Save at least 4 words to unlock Multiple Choice!', 'info');
+        return;
+      }
+      startExercise('mc');
+    });
     document.getElementById('start-mc')?.addEventListener('click', () => startExercise('mc'));
+
+    document.getElementById('mode-fitb')?.addEventListener('click', (e) => {
+      if (e.target.closest('.btn')) return;
+      const allWords = WordBank.getAllWords();
+      if (allWords.length === 0) return;
+      startExercise('fitb');
+    });
     document.getElementById('start-fitb')?.addEventListener('click', () => startExercise('fitb'));
+
+    document.getElementById('mode-auditor')?.addEventListener('click', (e) => {
+      if (e.target.closest('.btn')) return;
+      startSentenceAuditor();
+    });
+    document.getElementById('start-auditor')?.addEventListener('click', () => startSentenceAuditor());
+
+    document.getElementById('mode-arrangement')?.addEventListener('click', (e) => {
+      if (e.target.closest('.btn')) return;
+      const allWords = WordBank.getAllWords();
+      if (allWords.length === 0) {
+        showToast('Save some words to unlock this exercise!', 'info');
+        return;
+      }
+      startWordArrangement();
+    });
+    document.getElementById('start-arrangement')?.addEventListener('click', () => startWordArrangement());
+
+    document.getElementById('mode-match')?.addEventListener('click', (e) => {
+      if (e.target.closest('.btn')) return;
+      const allWords = WordBank.getAllWords();
+      if (allWords.length < 2) {
+        showToast('Save at least 2 words to play Match!', 'info');
+        return;
+      }
+      startMatch();
+    });
+    document.getElementById('start-match')?.addEventListener('click', () => startMatch());
+
+    document.getElementById('mode-collab')?.addEventListener('click', (e) => {
+      if (e.target.closest('.btn')) return;
+      handleCollabMatchClick();
+    });
+    document.getElementById('start-collab')?.addEventListener('click', () => handleCollabMatchClick());
   }
+
+  // ── Feedback Bar ─────────────────────────────────────────────
+  function showExerciseFeedback({ correct, title, detail, correctAnswer, onContinue, canExplain }) {
+    const bar = document.getElementById('exercise-feedback-bar');
+    if (!bar) return;
+
+    bar.className = `exercise-feedback-bar fb-visible ${correct ? 'fb-correct' : 'fb-wrong'}`;
+    document.getElementById('fb-emoji').textContent = correct ? '😊' : '😕';
+    document.getElementById('fb-title').textContent = title || (correct ? 'You are correct!' : 'Not quite!');
+    const detailEl = document.getElementById('fb-detail');
+    if (detail) { detailEl.textContent = detail; detailEl.style.display = ''; }
+    else { detailEl.style.display = 'none'; }
+
+    const caEl = document.getElementById('fb-correct-answer');
+    if (!correct && correctAnswer) {
+      caEl.innerHTML = `Correct answer: <strong>${escHtml(correctAnswer)}</strong>`;
+      caEl.classList.remove('hidden');
+    } else {
+      caEl.classList.add('hidden');
+    }
+
+    const explainBtn = document.getElementById('fb-explain-btn');
+    explainBtn.style.display = (canExplain && !correct) ? '' : 'none';
+
+    const continueBtn = document.getElementById('fb-continue-btn');
+    continueBtn.onclick = () => {
+      hideExerciseFeedback();
+      if (onContinue) onContinue();
+    };
+  }
+
+  function hideExerciseFeedback() {
+    const bar = document.getElementById('exercise-feedback-bar');
+    if (bar) bar.className = 'exercise-feedback-bar';
+  }
+
 
   function startExercise(mode) {
     const allWords = WordBank.getAllWords();
     if (allWords.length === 0) { showToast('Save some words first!', 'error'); return; }
+
+    if (typeof Analytics !== 'undefined') {
+      Analytics.logEvent('exercise_started', { exercise_type: mode });
+    }
 
     const today = new Date().toISOString().split('T')[0];
     const dueWords = allWords.filter(w => !w.srsNextReview || w.srsNextReview <= today);
@@ -1151,6 +1313,15 @@ const App = (() => {
     const total = state.exerciseQuestions.length;
     const score = state.exerciseScore;
     const pct = total > 0 ? Math.round((score / total) * 100) : 0;
+
+    if (typeof Analytics !== 'undefined') {
+      Analytics.logEvent('exercise_completed', {
+        exercise_type: state.exerciseMode,
+        score: score,
+        total: total,
+        percentage: pct
+      });
+    }
     document.getElementById('result-score-pct').textContent = `${pct}%`;
     let msg, emoji;
     if (pct >= 90) { msg = 'Ausgezeichnet! You\'re on fire! 🔥'; emoji = '🏆'; }
@@ -1303,20 +1474,16 @@ const App = (() => {
       else if (t === selected && !isCorrect) btn.classList.add('wrong');
     });
 
-    if (isCorrect) {
-      setTimeout(() => { state.exerciseIndex++; renderMCQuestion(); }, 1200);
-    } else {
-      const feedback = document.getElementById('mc-feedback');
-      if (feedback) {
-        const q = state.exerciseQuestions[state.exerciseIndex];
-        const explainBtn = getGeminiKey() ? `<button class="btn btn-ghost btn-sm" style="background:rgba(252,208,0,0.1);color:#b89a00;border:1px solid rgba(252,208,0,0.25);" onclick="App.explainMistake('${escAttr(q.question)}', '${escAttr(correct)}', '${escAttr(selected)}')">💡 Explain</button>` : '';
-        feedback.innerHTML = `
-          <div style="display:flex; gap:12px; justify-content:center; align-items:center; margin-top:10px;">
-            ${explainBtn}
-            <button class="btn btn-primary btn-sm" onclick="App.nextQuestion()">Next Question ➔</button>
-          </div>`;
-      }
-    }
+    const q = state.exerciseQuestions[state.exerciseIndex];
+    showExerciseFeedback({
+      correct: isCorrect,
+      title: isCorrect ? 'You are correct! 🎉' : 'Not quite!',
+      detail: isCorrect ? correct : null,
+      correctAnswer: !isCorrect ? correct : null,
+      onContinue: () => { state.exerciseIndex++; renderMCQuestion(); },
+      canExplain: true,
+      explainArgs: [q.question, correct, selected],
+    });
   }
 
   function renderFITBQuestion() {
@@ -1366,28 +1533,432 @@ const App = (() => {
     if (checkBtn) checkBtn.disabled = true;
     const filled = document.getElementById('fitb-filled');
     if (filled) filled.textContent = answer;
-    const feedback = document.getElementById('fitb-feedback');
 
-    if (isCorrect) {
-      feedback.innerHTML = `<span style="color:#47cf73;font-weight:600;font-size:1.1rem">✓ Richtig! Correct! 🎉</span>`;
-      setTimeout(() => { state.exerciseIndex++; renderFITBQuestion(); }, 1200);
-    } else {
-      const q = state.exerciseQuestions[state.exerciseIndex];
-      const explainBtn = getGeminiKey() ? `<button class="btn btn-ghost btn-sm" style="background:rgba(252,208,0,0.1);color:#b89a00;border:1px solid rgba(252,208,0,0.25);" onclick="App.explainMistake('${escAttr(q.sentenceDe || q.english)}', '${escAttr(answer)}', '${escAttr(userAnswer)}')">💡 Explain</button>` : '';
-      feedback.innerHTML = `
-        <div style="color:#ff3c41;font-weight:600;margin-bottom:8px;">✗ Not quite. Answer: <strong style="color:#fcd000">${escHtml(answer)}</strong></div>
-        <div style="display:flex; gap:12px; justify-content:center; align-items:center; margin-top:10px;">
-          ${explainBtn}
-          <button class="btn btn-primary btn-sm" onclick="App.nextQuestion()">Next Question ➔</button>
-        </div>`;
-    }
+    const q = state.exerciseQuestions[state.exerciseIndex];
+    showExerciseFeedback({
+      correct: isCorrect,
+      title: isCorrect ? 'You are correct! 🎉' : 'Not quite!',
+      detail: isCorrect ? answer : null,
+      correctAnswer: !isCorrect ? answer : null,
+      onContinue: () => { state.exerciseIndex++; renderFITBQuestion(); },
+      canExplain: true,
+      explainArgs: [q.sentenceDe || q.english, answer, userAnswer],
+    });
   }
 
   function stopExercise() {
     document.getElementById('exercise-picker').classList.remove('hidden');
     document.getElementById('exercise-area').classList.add('hidden');
+    document.getElementById('word-arrangement-area')?.classList.add('hidden');
+    document.getElementById('match-area')?.classList.add('hidden');
     document.getElementById('exercise-result-area').classList.add('hidden');
+    hideExerciseFeedback();
+    if (state.matchTimer) { clearInterval(state.matchTimer); state.matchTimer = null; }
     renderExercisePicker();
+  }
+
+  // ── Word Arrangement Exercise ─────────────────────────────────
+  function startWordArrangement() {
+    const allWords = WordBank.getAllWords();
+    if (allWords.length === 0) { showToast('Save some words first!', 'error'); return; }
+    state.exerciseMode = 'arrangement';
+    state.exerciseIndex = 0;
+    state.exerciseScore = 0;
+    state.exerciseQuestions = Exercises.generateWordArrangement(allWords);
+    if (!state.exerciseQuestions.length) { showToast('Not enough words for this exercise yet!', 'info'); return; }
+
+    document.getElementById('exercise-picker').classList.add('hidden');
+    document.getElementById('exercise-area').classList.add('hidden');
+    document.getElementById('exercise-result-area').classList.add('hidden');
+    document.getElementById('word-arrangement-area').classList.remove('hidden');
+    renderWAQuestion();
+  }
+
+  function renderWAQuestion() {
+    const questions = state.exerciseQuestions;
+    const i = state.exerciseIndex;
+    if (i >= questions.length) {
+      document.getElementById('word-arrangement-area').classList.add('hidden');
+      endExercise();
+      return;
+    }
+    const q = questions[i];
+    // state for this question
+    state.waAnswer = [];   // indices from q.tiles currently placed in answer zone
+    state.waQuestion = q;
+
+    const area = document.getElementById('word-arrangement-area');
+    area.innerHTML = `
+      <div class="wa-container">
+        <div class="wa-progress-row">
+          <div class="progress-bar" style="flex:1"><div class="progress-fill" style="width:${(i/questions.length)*100}%"></div></div>
+          <span class="progress-label">${i+1} / ${questions.length}</span>
+        </div>
+        <div class="wa-header-label">Translate to English</div>
+        <div class="wa-phrase-prompt">
+          <button class="wa-phrase-speaker-btn" onclick="App.speakText('${escAttr(q.prompt)}', 'de-DE')" title="Listen">🔊</button>
+          <div class="wa-phrase-text">${escHtml(q.prompt)}</div>
+        </div>
+        <div class="wa-answer-zone" id="wa-answer-zone"></div>
+        <div class="wa-tile-pool" id="wa-tile-pool">
+          ${q.tiles.map((tile, ti) =>
+            `<button class="word-tile" id="wa-tile-${ti}" onclick="App.waAddTile(${ti})">${escHtml(tile)}</button>`
+          ).join('')}
+        </div>
+        <div style="display:flex;gap:10px;">
+          <button class="btn btn-secondary" style="flex:1" onclick="App.waReset()">Clear</button>
+          <button class="btn btn-primary" style="flex:2" onclick="App.waCheck()">Check it</button>
+        </div>
+        <div style="text-align:center">
+          <button class="btn btn-ghost btn-sm" onclick="App.stopExercise()">Stop session</button>
+        </div>
+      </div>`;
+  }
+
+  function waAddTile(tileIndex) {
+    const q = state.waQuestion;
+    const tile = q.tiles[tileIndex];
+    if (!tile) return;
+    if (state.waAnswer.includes(tileIndex)) {
+      // remove it (toggle)
+      state.waAnswer = state.waAnswer.filter(i => i !== tileIndex);
+    } else {
+      state.waAnswer.push(tileIndex);
+    }
+    _renderWAZone();
+  }
+
+  function waReset() {
+    state.waAnswer = [];
+    _renderWAZone();
+  }
+
+  function _renderWAZone() {
+    const q = state.waQuestion;
+    const answerZone = document.getElementById('wa-answer-zone');
+    const pool = document.getElementById('wa-tile-pool');
+    if (!answerZone || !pool) return;
+
+    // Update answer zone
+    if (state.waAnswer.length === 0) {
+      answerZone.innerHTML = '<span style="color:var(--text-muted);font-size:0.85rem;">Tap words below to build your answer</span>';
+      answerZone.classList.remove('has-tiles');
+    } else {
+      answerZone.innerHTML = state.waAnswer.map(ti =>
+        `<button class="word-tile tile-in-answer" onclick="App.waAddTile(${ti})">${escHtml(q.tiles[ti])}</button>`
+      ).join('');
+      answerZone.classList.add('has-tiles');
+    }
+
+    // Update pool tile states
+    q.tiles.forEach((_, ti) => {
+      const tileEl = document.getElementById(`wa-tile-${ti}`);
+      if (tileEl) {
+        if (state.waAnswer.includes(ti)) tileEl.classList.add('tile-used');
+        else tileEl.classList.remove('tile-used');
+      }
+    });
+  }
+
+  function waCheck() {
+    const q = state.waQuestion;
+    if (state.waAnswer.length === 0) { showToast('Tap some words to build your answer!', 'info'); return; }
+    const userAnswer = state.waAnswer.map(ti => q.tiles[ti]).join(' ').toLowerCase().trim();
+    const correct = userAnswer === q.answer.toLowerCase().trim();
+    WordBank.recordExerciseResult(q.id, correct);
+    if (correct) state.exerciseScore++;
+
+    showExerciseFeedback({
+      correct,
+      title: correct ? 'You are correct! 🎉' : 'You were close!',
+      detail: correct ? q.answer : null,
+      correctAnswer: !correct ? q.answer : null,
+      onContinue: () => { state.exerciseIndex++; renderWAQuestion(); },
+      canExplain: false,
+    });
+  }
+
+  // ── Match Exercise ────────────────────────────────────────────
+  function startMatch() {
+    const allWords = WordBank.getAllWords();
+    if (allWords.length < 2) { showToast('Save at least 2 words first!', 'error'); return; }
+    state.exerciseMode = 'match';
+    state.matchPairs = Exercises.generateMatchPairs(allWords);
+    state.matchSelected = null;  // {tileEl, pairId, side}
+    state.matchMatched = new Set();
+    state.matchSeconds = 0;
+    if (state.matchTimer) clearInterval(state.matchTimer);
+
+    document.getElementById('exercise-picker').classList.add('hidden');
+    document.getElementById('exercise-area').classList.add('hidden');
+    document.getElementById('exercise-result-area').classList.add('hidden');
+    document.getElementById('match-area').classList.remove('hidden');
+    renderMatch();
+
+    state.matchTimer = setInterval(() => {
+      state.matchSeconds++;
+      const tEl = document.getElementById('match-timer-display');
+      if (tEl) {
+        const m = String(Math.floor(state.matchSeconds / 60)).padStart(2,'0');
+        const s = String(state.matchSeconds % 60).padStart(2,'0');
+        tEl.textContent = `${m}:${s}`;
+      }
+    }, 1000);
+  }
+
+  function renderMatch() {
+    const pairs = state.matchPairs;
+    // Build mixed tile list: each pair contributes a german tile and an english tile
+    const tiles = [];
+    pairs.forEach(p => {
+      tiles.push({ pairId: p.id, text: p.german, side: 'de' });
+      tiles.push({ pairId: p.id, text: p.english, side: 'en' });
+    });
+    // Shuffle
+    for (let i = tiles.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
+    }
+    state.matchTiles = tiles;
+
+    const area = document.getElementById('match-area');
+    area.innerHTML = `
+      <div class="match-container">
+        <div class="match-header-row">
+          <div class="progress-bar" style="flex:1"><div class="progress-fill" style="width:0%" id="match-progress-fill"></div></div>
+          <div class="match-timer" id="match-timer-display">00:00</div>
+        </div>
+        <p style="text-align:center;font-size:0.8rem;color:var(--text-muted);margin:0;">Match each German word to its English meaning</p>
+        <div class="match-grid" id="match-grid">
+          ${tiles.map((t, ti) =>
+            `<button class="match-tile" id="match-tile-${ti}" onclick="App.matchSelectTile(${ti})">${escHtml(t.text)}</button>`
+          ).join('')}
+        </div>
+        <div style="text-align:center">
+          <button class="btn btn-ghost btn-sm" onclick="App.stopExercise()">Stop</button>
+        </div>
+      </div>`;
+  }
+
+  function matchSelectTile(tileIndex) {
+    const tiles = state.matchTiles;
+    const tile = tiles[tileIndex];
+    if (!tile) return;
+    const tileEl = document.getElementById(`match-tile-${tileIndex}`);
+    if (!tileEl || tileEl.classList.contains('tile-matched')) return;
+
+    if (!state.matchSelected) {
+      // First selection
+      state.matchSelected = { tileIndex, pairId: tile.pairId, side: tile.side, el: tileEl };
+      tileEl.classList.add('tile-selected');
+    } else {
+      const first = state.matchSelected;
+      if (first.tileIndex === tileIndex) {
+        // Deselect
+        tileEl.classList.remove('tile-selected');
+        state.matchSelected = null;
+        return;
+      }
+      if (first.pairId === tile.pairId && first.side !== tile.side) {
+        // Correct match!
+        first.el.classList.remove('tile-selected');
+        first.el.classList.add('tile-matched');
+        tileEl.classList.add('tile-matched');
+        state.matchMatched.add(first.pairId);
+        state.matchSelected = null;
+
+        // Update progress
+        const pct = (state.matchMatched.size / state.matchPairs.length) * 100;
+        const pf = document.getElementById('match-progress-fill');
+        if (pf) pf.style.width = pct + '%';
+
+        // All matched?
+        if (state.matchMatched.size === state.matchPairs.length) {
+          clearInterval(state.matchTimer);
+          state.matchTimer = null;
+          const m = String(Math.floor(state.matchSeconds / 60)).padStart(2,'0');
+          const s = String(state.matchSeconds % 60).padStart(2,'0');
+          setTimeout(() => {
+            const area = document.getElementById('match-area');
+            if (area) area.innerHTML = `
+              <div class="match-complete">
+                <div class="match-complete-emoji">🏆</div>
+                <div class="match-complete-time">${m}:${s}</div>
+                <div class="match-complete-label">All pairs matched! Great job!</div>
+                <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+                  <button class="btn btn-primary" onclick="App.startMatch()">Play Again</button>
+                  <button class="btn btn-secondary" onclick="App.stopExercise()">Back to Exercises</button>
+                </div>
+              </div>`;
+          }, 600);
+        }
+      } else {
+        // Wrong match — flash red, unselect after delay
+        first.el.classList.remove('tile-selected');
+        first.el.classList.add('tile-selected-wrong');
+        tileEl.classList.add('tile-selected-wrong');
+        state.matchSelected = null;
+        setTimeout(() => {
+          first.el.classList.remove('tile-selected-wrong');
+          tileEl.classList.remove('tile-selected-wrong');
+        }, 650);
+      }
+    }
+  }
+
+  function startSentenceAuditor() {
+    document.getElementById('exercise-picker').classList.add('hidden');
+    document.getElementById('exercise-area').classList.add('hidden');
+    document.getElementById('exercise-result-area').classList.add('hidden');
+    
+    const auditorArea = document.getElementById('sentence-auditor-area');
+    if (auditorArea) auditorArea.classList.remove('hidden');
+    
+    // Check if key is available
+    const keyAvailable = !!getGeminiKey();
+    const warning = document.getElementById('auditor-key-warning');
+    const submitBtn = document.getElementById('auditor-submit-btn');
+    
+    if (warning) warning.classList.toggle('hidden', keyAvailable);
+    if (submitBtn) submitBtn.disabled = !keyAvailable;
+    
+    // Clear inputs and results
+    const input = document.getElementById('auditor-input');
+    const results = document.getElementById('auditor-results');
+    const loader = document.getElementById('auditor-loader');
+    if (input) input.value = '';
+    if (results) results.innerHTML = '';
+    if (loader) loader.classList.add('hidden');
+  }
+
+  function stopSentenceAuditor() {
+    const auditorArea = document.getElementById('sentence-auditor-area');
+    if (auditorArea) auditorArea.classList.add('hidden');
+    
+    document.getElementById('exercise-picker').classList.remove('hidden');
+    renderExercisePicker();
+  }
+
+  async function auditSentence() {
+    const input = document.getElementById('auditor-input');
+    const sentence = input?.value?.trim() || '';
+    if (!sentence) {
+      showToast('Please type a sentence to audit first!', 'info');
+      return;
+    }
+    
+    if (!getGeminiKey()) {
+      showToast('Gemini API key is required.', 'error');
+      return;
+    }
+    
+    const loader = document.getElementById('auditor-loader');
+    const submitBtn = document.getElementById('auditor-submit-btn');
+    const resultsContainer = document.getElementById('auditor-results');
+    
+    if (loader) loader.classList.remove('hidden');
+    if (submitBtn) submitBtn.disabled = true;
+    if (resultsContainer) resultsContainer.innerHTML = '';
+    
+    try {
+      const prompt = `You are a professional ${getLearningLangName()} teacher.
+Audit the following ${getLearningLangName()} sentence typed by a student:
+"${sentence}"
+
+Provide feedback in JSON format only, matching this structure:
+{
+  "sentenceOriginal": "the original sentence",
+  "sentenceCorrected": "the fully corrected sentence in ${getLearningLangName()}. If the original was perfect, this should be identical.",
+  "isPerfect": true/false (true if the original sentence was grammatically and stylistically perfect, false otherwise),
+  "mistakes": [
+    {
+      "wrong": "the exact substring from the original sentence that is incorrect",
+      "right": "the corrected substring that replaces it",
+      "explanation": "a short, simple 1-2 sentence explanation in English of why it was incorrect (e.g., verb position, case ending, dative preposition, word choice)."
+    }
+  ],
+  "generalFeedback": "A brief, encouraging overall note in English about the user's sentence structure and style."
+}
+
+Do not include any markdown formatting wrappers (like \`\`\`json). Just return the raw JSON string.`;
+
+      const data = await callGemini(prompt, true);
+      if (!data || typeof data !== 'object') {
+        throw new Error('Failed to parse the AI analysis report. Please try again.');
+      }
+      
+      // Render results
+      let html = '';
+      
+      if (data.isPerfect) {
+        html += `
+          <div class="auditor-result-card perfect">
+            <div style="font-size:1.8rem; margin-bottom: 6px;">🎉 Excellent!</div>
+            <div class="auditor-sentence-display">
+              <span class="auditor-sentence-corrected">${escHtml(data.sentenceCorrected)}</span>
+            </div>
+            <p style="margin: 0.5rem 0 0 0; font-size: 0.92rem; color: var(--text-secondary); line-height: 1.45;">
+              ${escHtml(data.generalFeedback || 'No grammar or spelling mistakes detected. Great job!')}
+            </p>
+          </div>
+        `;
+      } else {
+        html += `
+          <div class="auditor-result-card imperfect">
+            <div style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 700;">Auditor Correction</div>
+            
+            <div class="auditor-sentence-display" style="margin-top: 6px; margin-bottom: 12px;">
+              <div class="auditor-sentence-original">${escHtml(data.sentenceOriginal)}</div>
+              <div class="auditor-sentence-corrected" style="color: var(--sky-blue);">${escHtml(data.sentenceCorrected)}</div>
+            </div>
+            
+            <div class="auditor-mistakes-title">Grammar Scan Results</div>
+        `;
+        
+        if (data.mistakes && data.mistakes.length > 0) {
+          data.mistakes.forEach(m => {
+            html += `
+              <div class="auditor-mistake-item">
+                <div class="auditor-diff-grid">
+                  <div>Wrong: <span class="auditor-diff-wrong">${escHtml(m.wrong)}</span></div>
+                  <div style="color: var(--text-muted);">→</div>
+                  <div>Correct: <span class="auditor-diff-right">${escHtml(m.right)}</span></div>
+                </div>
+                <div class="auditor-mistake-exp">${escHtml(m.explanation)}</div>
+              </div>
+            `;
+          });
+        } else {
+          html += `<p class="text-muted" style="font-size:0.88rem;">Minor stylistic tweaks suggested.</p>`;
+        }
+        
+        if (data.generalFeedback) {
+          html += `
+            <div style="margin-top: var(--space-md); padding-top: var(--space-md); border-top: 1px solid var(--border); font-size: 0.9rem; color: var(--text-secondary); line-height: 1.45;">
+              <strong>Feedback:</strong> ${escHtml(data.generalFeedback)}
+            </div>
+          `;
+        }
+        
+        html += `</div>`;
+      }
+      
+      if (resultsContainer) resultsContainer.innerHTML = html;
+      
+    } catch (e) {
+      console.error(e);
+      showToast(e.message || 'Error occurred during sentence audit.', 'error');
+      if (resultsContainer) {
+        resultsContainer.innerHTML = `
+          <div class="card card-red" style="margin-top: var(--space-md);">
+            <strong>Error Auditing Sentence:</strong> ${escHtml(e.message || 'Network or API error occurred.')}
+          </div>
+        `;
+      }
+    } finally {
+      if (loader) loader.classList.add('hidden');
+      if (submitBtn) submitBtn.disabled = false;
+    }
   }
 
   // ── Settings Page ──────────────────────────────────────────────
@@ -1419,6 +1990,13 @@ const App = (() => {
     if (pgSpeech) pgSpeech.value = speechRate;
     if (pgTheme) pgTheme.value = theme;
 
+    const pgLang = document.getElementById('settings-page-learning-lang');
+    if (pgLang) pgLang.value = localStorage.getItem('dd_learning_lang') || 'de';
+
+    if (typeof UserProfile !== 'undefined') {
+      UserProfile.initForm();
+    }
+
     // Show server API status if available
     let serverStatus = null;
     try {
@@ -1432,14 +2010,27 @@ const App = (() => {
   function saveGoalsSettings() {
     const cefr = document.getElementById('settings-page-cefr-goal')?.value || 'B1';
     const daily = document.getElementById('settings-page-daily-word-goal')?.value || '5';
+    const lang = document.getElementById('settings-page-learning-lang')?.value || 'de';
+    const oldLang = localStorage.getItem('dd_learning_lang') || 'de';
+
     localStorage.setItem('dd_cefr_goal', cefr);
     localStorage.setItem('dd_daily_word_goal', daily);
+
+    if (typeof LanguageSupport !== 'undefined') {
+      LanguageSupport.setLanguage(lang);
+    }
+
+    if (lang !== oldLang) {
+      state.translationDirection = 'en-' + lang;
+    }
+
     showToast('Goals saved successfully!', 'success');
     
     // Re-render Insights if currently open
     if (typeof Insights !== 'undefined' && state.currentView === 'insights') {
       Insights.render(WordBank.getStats());
     }
+    syncSettingsToFirebase();
   }
 
   function savePreferencesSettings() {
@@ -1448,6 +2039,7 @@ const App = (() => {
     localStorage.setItem('dd_speech_rate', speech);
     applyTheme(theme);
     showToast('Preferences saved successfully!', 'success');
+    syncSettingsToFirebase();
   }
 
   function applyTheme(theme) {
@@ -1458,6 +2050,31 @@ const App = (() => {
     document.documentElement.classList.toggle('dark-theme', isDark);
     document.body.classList.toggle('dark-theme', isDark);
     document.body.classList.toggle('light-theme', !isDark);
+  }
+
+  function syncSettingsToFirebase() {
+    if (typeof Auth === 'undefined' || Auth.isGuest()) return;
+    const s = Translator.loadSettings();
+    const settings = {
+      provider: s.provider || 'auto',
+      deeplKey: s.deeplKey || '',
+      googleKey: s.googleKey || '',
+      geminiKey: GeminiClient.getKey() || '',
+      cefrGoal: localStorage.getItem('dd_cefr_goal') || 'B1',
+      dailyWordGoal: localStorage.getItem('dd_daily_word_goal') || '5',
+      speechRate: localStorage.getItem('dd_speech_rate') || '1.0',
+      theme: localStorage.getItem('dd_theme') || 'system',
+      nativeLang: localStorage.getItem('dd_native_lang') || 'en',
+      currentLevel: localStorage.getItem('dd_current_level') || 'A1',
+      learningReason: localStorage.getItem('dd_learning_reason') || 'hobby',
+      learningFocus: localStorage.getItem('dd_learning_focus') || 'vocab',
+      learningLang: localStorage.getItem('dd_learning_lang') || 'de',
+    };
+    DB.saveUserSettings(settings);
+
+    if (typeof Leaderboard !== 'undefined') {
+      Leaderboard.syncProfile(Auth.getUid(), WordBank.getStats());
+    }
   }
 
 
@@ -1474,6 +2091,15 @@ const App = (() => {
     GeminiClient.saveKey(geminiKey);
     updateGeminiStatusUI();
 
+    if (typeof Analytics !== 'undefined') {
+      Analytics.logEvent('settings_updated', {
+        provider: settings.provider,
+        has_deepl_key: !!settings.deeplKey,
+        has_google_key: !!settings.googleKey,
+        has_gemini_key: !!geminiKey
+      });
+    }
+
     // Also sync to drawer
     const drawerProvider = document.getElementById('setting-provider');
     const drawerDeepl = document.getElementById('setting-deepl-key');
@@ -1483,7 +2109,8 @@ const App = (() => {
     if (drawerGoogle) drawerGoogle.value = settings.googleKey;
     updateProviderIndicator();
     updateSettingsStatusBadges(Translator.serverStatus);
-    showToast(`Settings saved — using ${Translator.getActiveProviderName()}`, 'success');
+    showToast(`Settings saved: using ${Translator.getActiveProviderName()}`, 'success');
+    syncSettingsToFirebase();
   }
 
   function updateFirebasePreview() {
@@ -1508,7 +2135,7 @@ const App = (() => {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `mein-woerterbuch-${new Date().toISOString().slice(0,10)}.json`;
+    a.download = `daily-deutsch-${new Date().toISOString().slice(0,10)}.json`;
     a.click();
     showToast('Word bank exported as JSON', 'success');
   }
@@ -1520,7 +2147,7 @@ const App = (() => {
     const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `mein-woerterbuch-${new Date().toISOString().slice(0,10)}.csv`;
+    a.download = `daily-deutsch-${new Date().toISOString().slice(0,10)}.csv`;
     a.click();
     showToast('Word bank exported as CSV', 'success');
   }
@@ -1559,6 +2186,82 @@ const App = (() => {
   //    These wrappers keep existing call sites unchanged.
 
   const showToast     = (msg, type) => UI.showToast(msg, type);
+
+  // ── Streak Celebration Modal ──────────────────────────────────
+  function showStreakCelebration(streak) {
+    const modal = document.getElementById('streak-modal');
+    if (!modal) return;
+
+    // Update content
+    const numEl  = document.getElementById('streak-modal-number');
+    const subEl  = document.getElementById('streak-modal-sub');
+    if (numEl) numEl.textContent = streak;
+    if (subEl) {
+      const msgs = [
+        `Great start! Come back tomorrow to keep your streak going.`,
+        `Two days in a row! You're building a real habit. 💪`,
+        `${streak} days straight! Your German is improving fast. 🔥`,
+        `${streak}-day streak! You're on fire! Don't break it. ⚡`,
+        `Unreal! ${streak} days of German practice. Absolute legend. 👑`,
+      ];
+      const msgIndex = Math.min(streak - 1, msgs.length - 1);
+      subEl.textContent = msgs[msgIndex < 0 ? 0 : msgIndex];
+    }
+
+    // Spawn confetti dots
+    const card = document.getElementById('streak-modal-card');
+    if (card) {
+      const colors = ['#ff9a3c','#ff5e00','#ffdb00','#5cc3e8','#79ceb8','#ae63e4'];
+      for (let i = 0; i < 12; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'streak-confetti-dot';
+        const angle = (i / 12) * 360;
+        const dist = 80 + Math.random() * 80;
+        dot.style.setProperty('--cx', `${Math.cos(angle * Math.PI / 180) * dist}px`);
+        dot.style.setProperty('--cy', `${Math.sin(angle * Math.PI / 180) * dist}px`);
+        dot.style.background = colors[i % colors.length];
+        dot.style.left = '50%';
+        dot.style.top = '30%';
+        dot.style.animationDelay = `${Math.random() * 0.3}s`;
+        card.appendChild(dot);
+        setTimeout(() => dot.remove(), 1500);
+      }
+    }
+
+    modal.classList.remove('hidden');
+    // Auto-close after 6s
+    setTimeout(() => closeStreakModal(), 6000);
+  }
+
+  function closeStreakModal() {
+    const modal = document.getElementById('streak-modal');
+    if (modal) modal.classList.add('hidden');
+  }
+
+  // ── Collab Match Invite ───────────────────────────────────────
+  function handleCollabMatchClick() {
+    const roomId = Math.random().toString(36).slice(2, 8).toUpperCase();
+    if (typeof Analytics !== 'undefined') {
+      Analytics.logEvent('collab_match_invite_created', { room_id: roomId });
+    }
+    const inviteUrl = `https://dailydeutsch.web.app/?collab=${roomId}`;
+    const shareText = `🤝 Challenge me to a German vocab duel on Daily Deutsch! Room: ${roomId}\n${inviteUrl}`;
+
+    if (navigator.share) {
+      navigator.share({
+        title: 'Collab Match: Daily Deutsch',
+        text: shareText,
+        url: inviteUrl,
+      }).catch(() => {});
+    } else {
+      // Fallback: copy to clipboard
+      navigator.clipboard.writeText(inviteUrl).then(() => {
+        showToast(`Invite link copied! Share it with a friend 🤝`, 'success');
+      }).catch(() => {
+        showToast(`Room code: ${roomId}. Share this with a friend!`, 'info');
+      });
+    }
+  }
   const escHtml       = (s) => UI.escHtml(s);
   const escAttr       = (s) => UI.escAttr(s);
   const capitalise    = (s) => UI.capitalise(s);
@@ -1579,6 +2282,61 @@ const App = (() => {
         if (state.currentView === 'insights') Insights.render(WordBank.getStats());
         updateNavStats();
       });
+
+      // Sync user API keys and preferences from Firestore
+      if (!Auth.isGuest()) {
+        try {
+          const remoteSettings = await DB.getUserSettings();
+          if (remoteSettings) {
+            // Restore settings to localStorage
+            const apiSettings = {
+              provider: remoteSettings.provider || 'auto',
+              deeplKey: remoteSettings.deeplKey || '',
+              googleKey: remoteSettings.googleKey || '',
+            };
+            Translator.saveSettings(apiSettings);
+            GeminiClient.saveKey(remoteSettings.geminiKey || '');
+
+            if (remoteSettings.cefrGoal) localStorage.setItem('dd_cefr_goal', remoteSettings.cefrGoal);
+            if (remoteSettings.dailyWordGoal) localStorage.setItem('dd_daily_word_goal', remoteSettings.dailyWordGoal);
+            if (remoteSettings.speechRate) localStorage.setItem('dd_speech_rate', remoteSettings.speechRate);
+            if (remoteSettings.theme) {
+              localStorage.setItem('dd_theme', remoteSettings.theme);
+              applyTheme(remoteSettings.theme);
+            }
+            if (remoteSettings.nativeLang) localStorage.setItem('dd_native_lang', remoteSettings.nativeLang);
+            if (remoteSettings.currentLevel) localStorage.setItem('dd_current_level', remoteSettings.currentLevel);
+            if (remoteSettings.learningReason) localStorage.setItem('dd_learning_reason', remoteSettings.learningReason);
+            if (remoteSettings.learningFocus) localStorage.setItem('dd_learning_focus', remoteSettings.learningFocus);
+            if (remoteSettings.learningLang) {
+              localStorage.setItem('dd_learning_lang', remoteSettings.learningLang);
+              if (typeof LanguageSupport !== 'undefined') {
+                LanguageSupport.updateUIElements();
+              }
+            }
+
+            // Sync drawer inputs
+            const drawerProvider = document.getElementById('setting-provider');
+            const drawerDeepl = document.getElementById('setting-deepl-key');
+            const drawerGoogle = document.getElementById('setting-google-key');
+            if (drawerProvider) drawerProvider.value = apiSettings.provider;
+            if (drawerDeepl) drawerDeepl.value = apiSettings.deeplKey;
+            if (drawerGoogle) drawerGoogle.value = apiSettings.googleKey;
+
+            updateProviderIndicator();
+            updateSettingsStatusBadges(Translator.serverStatus);
+          } else {
+            // First time login: push local keys to remote Firestore
+            syncSettingsToFirebase();
+          }
+        } catch (e) {
+          console.error('[Settings Sync] Failed to restore settings:', e);
+        }
+      }
+
+      if (typeof Leaderboard !== 'undefined') {
+        Leaderboard.syncProfile(user.uid, WordBank.getStats());
+      }
 
       // Boot the app UI only on first auth
       if (!_appInitialized) {
@@ -1687,6 +2445,9 @@ const App = (() => {
     _setLoginError('');
     try {
       await Auth.signInWithGoogle();
+      if (typeof Analytics !== 'undefined') {
+        Analytics.logEvent('login', { method: 'google' });
+      }
       // handleAuthChange fires automatically
     } catch (e) {
       console.error('[Auth] Google sign-in failed:', e);
@@ -1703,6 +2464,9 @@ const App = (() => {
     _setLoginError('');
     try {
       await Auth.signInAsGuest();
+      if (typeof Analytics !== 'undefined') {
+        Analytics.logEvent('login', { method: 'guest' });
+      }
     } catch (e) {
       console.error('[Auth] Guest sign-in failed:', e);
       _setLoginError('Could not start guest session. Please check your connection.');
@@ -1715,6 +2479,9 @@ const App = (() => {
     document.getElementById('user-dropdown').classList.add('hidden');
     try {
       await Auth.signOut();
+      if (typeof Analytics !== 'undefined') {
+        Analytics.logEvent('logout');
+      }
       _appInitialized = false;
       showToast('Signed out successfully', 'success');
     } catch (e) {
@@ -1724,10 +2491,8 @@ const App = (() => {
 
   async function upgradeToGoogle() {
     document.getElementById('user-dropdown').classList.add('hidden');
-    showToast('Opening Google sign-in…', 'info');
     try {
       await Auth.upgradeGuestToGoogle();
-      showToast('🎉 Linked to Google! Your words are now synced.', 'success');
     } catch (e) {
       console.error('[Auth] Upgrade failed:', e);
       if (e.code !== 'auth/popup-closed-by-user') {
@@ -1788,7 +2553,7 @@ const App = (() => {
   async function explainMistake(context, correct, wrong) {
     showModal('AI Grammar Explanation', '<div style="display:flex; justify-content:center; align-items:center; padding:30px;"><div class="spinner"></div></div>');
     try {
-      const prompt = `You are a friendly German language tutor. The user got a question wrong in an exercise.
+      const prompt = `You are a friendly ${getLearningLangName()} language tutor. The user got a question wrong in an exercise.
       Context/Sentence: "${context}"
       Correct Answer: "${correct}"
       User's Incorrect Answer: "${wrong}"
@@ -1821,6 +2586,10 @@ const App = (() => {
       return;
     }
 
+    if (typeof Analytics !== 'undefined') {
+      Analytics.logEvent('ai_story_triggered');
+    }
+
     const container = document.getElementById('ai-story-container');
     if (container) {
       container.innerHTML = `<div style="display:flex; justify-content:center; align-items:center; padding:30px;"><div class="spinner"></div><span style="margin-left:10px;color:var(--text-muted);">Writing your custom story…</span></div>`;
@@ -1830,17 +2599,21 @@ const App = (() => {
     const wordListStr = randomWords.map(w => `"${w.german}" (meaning "${w.english}")`).join(', ');
 
     try {
-      const prompt = `You are a German language teacher. Write a very short, simple, engaging story (exactly 3 sentences) in German at an elementary A2-B1 level.
+      const prompt = `You are a ${getLearningLangName()} language teacher. Write a very short, simple, engaging story (exactly 3 sentences) in ${getLearningLangName()} at an elementary A2-B1 level.
       You MUST naturally use these specific vocabulary words in the story: ${wordListStr}.
-      Highlight the target vocabulary words in the German text by surrounding them with asterisks, like *word*.
+      Highlight the target vocabulary words in the ${getLearningLangName()} text by surrounding them with asterisks, like *word*.
       Provide a translation of the story in English.
       Return a JSON object with these EXACT keys:
       {
-        "storyDe": "The German text of the story (exactly 3 sentences, with target words surrounded by asterisks)",
+        "storyDe": "The ${getLearningLangName()} text of the story (exactly 3 sentences, with target words surrounded by asterisks)",
         "storyEn": "The English translation of the story"
       }`;
 
       const res = await callGemini(prompt, true);
+
+      if (typeof Analytics !== 'undefined') {
+        Analytics.logEvent('ai_story_success', { words_count: randomWords.length });
+      }
 
       let highlightedDe = escHtml(res.storyDe);
       highlightedDe = highlightedDe.replace(/\*([^*]+)\*/g, '<span style="color:var(--primary); font-weight:700;">$1</span>');
@@ -1869,6 +2642,9 @@ const App = (() => {
   function applyBetterPhrasing(text) {
     const input = document.getElementById('translate-input');
     if (input) {
+      if (typeof Analytics !== 'undefined') {
+        Analytics.logEvent('ai_better_phrasing_applied');
+      }
       input.value = text;
       const charCount = document.getElementById('char-count');
       if (charCount) charCount.textContent = `${text.length} / 500`;
@@ -1888,7 +2664,7 @@ const App = (() => {
           <div class="ai-writing-assistant-title">🤖 AI Writing Assistant</div>
         </div>
         <div class="ai-writing-assistant-body">
-          <p style="margin-bottom: 8px;">Get instant CEFR levels, grammar feedback, and natural phrasing suggestions for your German text.</p>
+          <p style="margin-bottom: 8px;">Get instant CEFR levels, grammar feedback, and natural phrasing suggestions for your ${getLearningLangName()} text.</p>
           <button class="btn btn-secondary btn-sm" onclick="App.navigateTo('settings')">
             🔑 Configure Gemini API Key →
           </button>
@@ -1909,8 +2685,12 @@ const App = (() => {
     `;
     container.classList.remove('hidden');
 
+    if (typeof Analytics !== 'undefined') {
+      Analytics.logEvent('ai_writing_assistant_trigger');
+    }
+
     try {
-      const prompt = `Analyze the German sentence "${germanText}".
+      const prompt = `Analyze the ${getLearningLangName()} sentence "${germanText}".
       Provide an assessment of its CEFR level (A1, A2, B1, B2, C1, or C2) and suggestions for improving it to sound more natural, grammatically correct, or sophisticated.
       Return a JSON object with this EXACT structure:
       {
@@ -1930,6 +2710,10 @@ const App = (() => {
 
       const res = await callGemini(prompt, true);
       if (!res || !res.cefrLevel) throw new Error('Invalid response from AI');
+
+      if (typeof Analytics !== 'undefined') {
+        Analytics.logEvent('ai_writing_assistant_success', { cefr_level: res.cefrLevel });
+      }
 
       const levelColors = {
         A1: { color: '#47cf73', bg: 'rgba(71,207,115,0.08)', border: 'rgba(71,207,115,0.22)' },
@@ -2066,11 +2850,11 @@ const App = (() => {
     `;
 
     try {
-      const prompt = `You are a German grammar helper. Conjugate the German verb "${germanVerb}" in the following tenses:
-      1. Present (Präsens)
-      2. Simple Past (Präteritum)
-      3. Present Perfect (Perfekt)
-      4. Future (Futur I)
+      const prompt = `You are a ${getLearningLangName()} grammar helper. Conjugate the ${getLearningLangName()} verb "${germanVerb}" in the following tenses:
+      1. Present (Präsens / equivalent standard present tense)
+      2. Simple Past (Präteritum / equivalent standard past tense)
+      3. Present Perfect (Perfekt / equivalent compound past tense)
+      4. Future (Futur I / equivalent standard future tense)
       
       For each tense, provide the conjugated form for the pronouns: ich, du, er/sie/es, wir, ihr, sie/Sie.
       Return a JSON object with this EXACT structure:
@@ -2235,20 +3019,20 @@ const App = (() => {
     }
 
     try {
-      const prompt = `You are a German grammar helper.
+      const prompt = `You are a ${getLearningLangName()} grammar helper.
       Your tasks are:
-      1. Identify the root infinitive (dictionary base form) of the German verb input: "${germanVerb}" (for example, if the input is "ging" or "werde gehen" or "gesehen", the root infinitive is "gehen").
+      1. Identify the root infinitive (dictionary base form) of the ${getLearningLangName()} verb input: "${germanVerb}" (for example, if the input is a conjugated form, resolve it to the dictionary base form).
       2. Translate this root infinitive verb to English.
       3. Conjugate this resolved root infinitive verb in the following tenses:
-         - Present (Präsens)
-         - Simple Past (Präteritum)
-         - Present Perfect (Perfekt)
-         - Future (Futur I)
+         - Present (Präsens / equivalent standard present tense)
+         - Simple Past (Präteritum / equivalent standard past tense)
+         - Present Perfect (Perfekt / equivalent compound past tense)
+         - Future (Futur I / equivalent standard future tense)
       
       For each tense, provide the conjugated form for the pronouns: ich, du, er/sie/es, wir, ihr, sie/Sie.
       Return a JSON object with this EXACT structure:
       {
-        "verb": "resolved root infinitive (e.g. 'gehen')",
+        "verb": "resolved root infinitive",
         "meaning": "English meaning",
         "conjugations": {
           "present": { "ich": "...", "du": "...", "er_sie_es": "...", "wir": "...", "ihr": "...", "sie_Sie": "..." },
@@ -2381,6 +3165,14 @@ const App = (() => {
     analyzeGermanSentence,
     toggleVerbConjugations,
     conjugateSuggestedVerb,
+    // New exercise types
+    startWordArrangement, waAddTile, waReset, waCheck,
+    startMatch, matchSelectTile,
+    auditSentence, stopSentenceAuditor,
+    // Streak modal
+    showStreakCelebration, closeStreakModal,
+    // Collab Match
+    handleCollabMatchClick,
   };
 
 })();
