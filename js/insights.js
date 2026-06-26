@@ -5,16 +5,14 @@
 
 const Insights = (() => {
 
-  const CATEGORY_COLORS = {
-    greeting: '#f5a623',
-    food: '#ff8800',
-    travel: '#20c997',
-    number: '#0dcaf0',
-    feelings: '#fd7e14',
-    work: '#9b59b6',
-    phrase: '#ff6b6b',
-    general: '#6c757d',
-  };
+  // Category colours come from the single source of truth in js/categories.js
+  // (Categories.getCategoryInfo) instead of a duplicated map here.
+  function categoryColor(id) {
+    if (typeof Categories !== 'undefined' && Categories.getCategoryInfo) {
+      return Categories.getCategoryInfo(id).color || '#6c757d';
+    }
+    return '#6c757d';
+  }
 
   const BADGES_CONFIG = [
     { id: 'first_word', name: 'Erster Schritt', desc: 'Saved your first word', emoji: '🌱' },
@@ -290,7 +288,7 @@ const Insights = (() => {
             <span class="cat-bar-count">${cat.count} use${cat.count !== 1 ? 's' : ''}</span>
           </div>
           <div class="cat-bar-track">
-            <div class="cat-bar-fill" style="width: 0%; background: ${CATEGORY_COLORS[cat.id] || '#6c757d'}"
+            <div class="cat-bar-fill" style="width: 0%; background: ${categoryColor(cat.id)}"
                  data-target="${pct}"></div>
           </div>
         </div>`;

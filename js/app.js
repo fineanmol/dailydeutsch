@@ -431,6 +431,47 @@ const App = (() => {
     updateProviderIndicator();
     updateGeminiStatusUI();
     navigateTo('translate');
+    maybeShowOnboarding();
+  }
+
+  // ── First-run onboarding (UX-01) ──────────────────────────────
+  // A one-time, dismissible 3-step value pitch shown on the user's first boot.
+  // Reuses showModal (focus-trapped, Esc-closable). Flagged in localStorage so
+  // it never nags again. Brand-only styling.
+  function maybeShowOnboarding() {
+    if (localStorage.getItem('dd_onboarded') === '1') return;
+    const steps = [
+      { emoji: '✍️', title: 'Translate anything', text: 'Type a word or sentence in English and get the German instantly — with its CEFR level and natural alternatives.' },
+      { emoji: '📚', title: 'Save what you use', text: 'Tap <strong>Save</strong> to add words to your personal Word Bank. The words you actually use become your study deck.' },
+      { emoji: '🎯', title: 'Practise &amp; build a streak', text: 'Flashcards, quizzes and a daily streak turn your saved words into lasting memory. Free, no account or key needed.' },
+    ];
+    const html = `
+      <div class="onboard">
+        <div class="onboard-steps">
+          ${steps.map(s => `
+            <div class="onboard-step">
+              <div class="onboard-emoji">${s.emoji}</div>
+              <div>
+                <div class="onboard-step-title">${s.title}</div>
+                <p class="onboard-step-text">${s.text}</p>
+              </div>
+            </div>`).join('')}
+        </div>
+        <button class="btn btn-primary w-full" onclick="App.finishOnboarding()" style="justify-content:center; display:flex; padding:12px; margin-top:4px;">
+          Los geht's! 🚀
+        </button>
+      </div>`;
+    showModal('Welcome to Daily Deutsch 🇩🇪', html);
+    if (typeof Analytics !== 'undefined') Analytics.logEvent('onboarding_shown');
+  }
+
+  function finishOnboarding() {
+    localStorage.setItem('dd_onboarded', '1');
+    if (typeof Analytics !== 'undefined') Analytics.logEvent('onboarding_completed');
+    closeModal();
+    // Nudge focus to the translator input so the user can start immediately.
+    const input = document.getElementById('translate-input');
+    if (input) input.focus();
   }
 
   // ── Navigation ───────────────────────────────────────────────
@@ -796,6 +837,7 @@ const App = (() => {
     // AI Story
     generateAIStory, runStoryDemo,
     submitProInterest,
+    finishOnboarding,
     saveGeminiKeyFromUI,
     updateGeminiStatusUI,
     testGeminiKey,

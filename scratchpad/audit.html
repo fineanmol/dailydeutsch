@@ -174,9 +174,9 @@
 
 <div class="wrap">
   <div class="ledger" role="list" aria-label="Findings by status">
-    <div class="cell c-ok" role="listitem"><div class="num">16</div><div class="lbl">Resolved ✓</div></div>
+    <div class="cell c-ok" role="listitem"><div class="num">23</div><div class="lbl">Resolved ✓</div></div>
     <div class="cell c-crit" role="listitem"><div class="num">0</div><div class="lbl">Critical open</div></div>
-    <div class="cell c-warn" role="listitem"><div class="num">6</div><div class="lbl">Open (low/med)</div></div>
+    <div class="cell c-warn" role="listitem"><div class="num">3</div><div class="lbl">Open (need backend / i18n)</div></div>
     <div class="cell c-info" role="listitem"><div class="num">P0–P4</div><div class="lbl">Phases shipped</div></div>
   </div>
   <p style="font-family:var(--mono);font-size:12px;color:var(--muted);margin:14px 0 0">
@@ -271,9 +271,9 @@
       <div class="f-head"><span class="f-id">UX-03</span><h3 class="f-title">Silent translation failure</h3><span class="resolved-stamp">✓ Fixed</span></div>
       <p><span class="ref">setResultError()</span> shows "⚠ Translation failed", offline detection, and a "↻ Try again" button (<span class="ref">js/features/translate.js</span>). Now also emits a <span class="ref">translate_failed</span> analytics event.</p>
     </div>
-    <div class="finding info">
-      <div class="f-head"><span class="f-id">UX-04</span><h3 class="f-title">BYOK setup is the paywall</h3><span class="sev info">Med</span></div>
-      <p>To unlock unlimited AI, users still mint &amp; paste their own key. Friction is lower now (a free trial precedes it, and a paid shared-Google translator exists), but the Settings copy still lacks a clear "why add a key + it's free" explainer.</p>
+    <div class="finding info resolved">
+      <div class="f-head"><span class="f-id">UX-04</span><h3 class="f-title">BYOK setup is the paywall</h3><span class="resolved-stamp">✓ Fixed</span></div>
+      <p>The Integration settings card now opens with a brand-styled explainer: <em>why</em> add a key (unlimited AI), that it's <em>free from Google, no card</em>, ~30s, stored on-device only, and that the app works fully without one. Paired with the existing "Get a free key" deep links.</p>
     </div>
     <div class="finding info resolved">
       <div class="f-head"><span class="f-id">UX-05</span><h3 class="f-title">Loading = plain text</h3><span class="resolved-stamp">✓ Fixed</span></div>
@@ -297,10 +297,10 @@
     <tbody>
       <tr class="resolved"><td>Hardcoded colors override tokens ✓</td><td><b>Fixed:</b> all off-brand hexes (#0ebeff/#47cf73/#fcd000/#ff3c41/#ae63e4 + raw oranges) replaced with the 5 brand tokens; CEFR palette unified in <span class="ref">CEFR.COLORS</span>; white toasts/cards now use <span class="ref">--bg-*</span> so dark mode holds.</td><td><span class="ref">css + js/*</span></td><td><span class="sev done">Done</span></td></tr>
       <tr class="resolved"><td>No focus trap in modals ✓</td><td><b>Fixed:</b> <span class="ref">UI.showModal</span> &amp; <span class="ref">App.showModal</span> trap Tab, close on Esc, restore focus, and set <span class="ref">role="dialog"</span>. A global brand <span class="ref">:focus-visible</span> ring was also added.</td><td><span class="ref">js/ui.js, app.js</span></td><td><span class="sev done">Done</span></td></tr>
-      <tr><td>Broken heading hierarchy</td><td>Settings section titles are <span class="ref">&lt;div&gt;</span>, not headings — screen-reader outline collapses</td><td><span class="ref">index.html:909</span></td><td><span class="sev info">Med</span></td></tr>
-      <tr><td>Dropdown not keyboard-operable</td><td>Avatar menu is <span class="ref">onclick</span>-only; no Enter/Space/Esc handling</td><td><span class="ref">index.html:271</span></td><td><span class="sev info">Med</span></td></tr>
-      <tr><td>Placeholder used as label</td><td>Auditor textarea relies on placeholder, no <span class="ref">&lt;label&gt;</span></td><td><span class="ref">index.html:708</span></td><td><span class="sev info">Low</span></td></tr>
-      <tr><td>PWA manifest incomplete</td><td>Single 1024px icon — needs 192/512; no maskable icon, no screenshots; orientation locked to portrait</td><td><span class="ref">manifest.json</span></td><td><span class="sev info">Med</span></td></tr>
+      <tr class="resolved"><td>Broken heading hierarchy ✓</td><td><b>Fixed:</b> Settings card titles are now real <span class="ref">&lt;h3&gt;</span> elements (margin-reset), restoring the screen-reader outline.</td><td><span class="ref">index.html</span></td><td><span class="sev done">Done</span></td></tr>
+      <tr class="resolved"><td>Dropdown not keyboard-operable ✓</td><td><b>Fixed:</b> avatar menu has <span class="ref">role="button"</span>, <span class="ref">tabindex="0"</span>, Enter/Space/Esc handling, and <span class="ref">aria-haspopup/expanded/controls</span>.</td><td><span class="ref">index.html</span></td><td><span class="sev done">Done</span></td></tr>
+      <tr class="resolved"><td>Placeholder used as label ✓</td><td><b>Fixed:</b> the auditor textarea has a real <span class="ref">&lt;label for="auditor-input" class="sr-only"&gt;</span> plus aria-label.</td><td><span class="ref">index.html</span></td><td><span class="sev done">Done</span></td></tr>
+      <tr class="resolved"><td>PWA manifest incomplete ✓</td><td><b>Fixed:</b> 192 + 512 + 512-maskable icons shipped; orientation set to <span class="ref">any</span>. (Store screenshots still optional.)</td><td><span class="ref">manifest.json</span></td><td><span class="sev done">Done</span></td></tr>
       <tr><td>i18n only half-wired</td><td><span class="ref">language.js</span> supports 7 target languages but app chrome/titles are hardcoded English</td><td><span class="ref">js/language.js</span></td><td><span class="sev info">Low</span></td></tr>
     </tbody>
   </table>
@@ -444,9 +444,9 @@
     <p>The parallel off-brand palette (cyan #0ebeff, green #47cf73, gold #fcd000, red #ff3c41, violet #ae63e4, plus stray oranges) is gone from CSS and feature JS. CEFR levels now map onto brand colours through a single source of truth (<span class="ref">CEFR.COLORS</span> + <span class="ref">--cefr-*</span> tokens). Toasts/modals/cards are theme-aware (dark-mode toast bug fixed).</p>
   </div>
 
-  <div class="finding info">
-    <div class="f-head"><span class="f-id">UX-01</span><h3 class="f-title">Onboarding still missing</h3><span class="sev info">High</span></div>
-    <p>Still the biggest activation gap: new users land straight in the tabs with no "translate → save → practise" first-run moment. Recommend a 3-step first-run overlay (fire <span class="ref">onboarding_completed</span>). Carried over from Round 1.</p>
+  <div class="finding info resolved">
+    <div class="f-head"><span class="f-id">UX-01</span><h3 class="f-title">First-run onboarding added</h3><span class="resolved-stamp">✓ Fixed</span></div>
+    <p>New users now see a one-time, focus-trapped 3-step overlay (translate → save → practise) on first boot, gated by <span class="ref">localStorage.dd_onboarded</span> and firing <span class="ref">onboarding_shown</span> / <span class="ref">onboarding_completed</span>. Dismiss focuses the translator input. <span class="ref">App.maybeShowOnboarding</span>.</p>
   </div>
 
   <div class="finding info">
@@ -460,8 +460,8 @@
   </div>
 
   <div class="finding info">
-    <div class="f-head"><span class="f-id">POLISH</span><h3 class="f-title">Lower-priority leftovers</h3><span class="sev info">Low</span></div>
-    <p>Category colours are still duplicated in <span class="ref">categories.js</span> + <span class="ref">insights.js</span> (8 decorative hues, intentionally kept distinct — not brand-restricted). BYOK Settings copy (UX-04) still lacks a "why + it's free" explainer. PWA manifest icons, heading hierarchy in Settings, and i18n chrome remain from Round 1.</p>
+    <div class="f-head"><span class="f-id">POLISH</span><h3 class="f-title">Leftovers — now mostly cleared</h3><span class="sev info">Low</span></div>
+    <p><b>Fixed:</b> category colours de-duplicated (<span class="ref">insights.js</span> now reads the single source in <span class="ref">categories.js</span>); Settings heading hierarchy; avatar-menu keyboard a11y; auditor label; PWA icons; BYOK explainer (UX-04). <b>Still open (low):</b> only <span class="ref">i18n</span> app-chrome localisation, and server-authoritative scoring / DeepL proxy (both need a backend — out of scope on the free static tier).</p>
   </div>
 </section>
 
